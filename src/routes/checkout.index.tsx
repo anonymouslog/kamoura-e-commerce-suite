@@ -240,8 +240,8 @@ function Input({
   label: string;
   value: string;
   onChange: (v: string) => void;
-  error?: string;
-  type?: string;
+  error?: string | undefined;
+  type?: string | undefined;
 }) {
   const id = label.toLowerCase().replace(/[^a-z]+/g, "-");
   return (

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ProductCard } from "@/components/site/ProductCard";
 import { useCart } from "@/lib/cart";
-import { getProduct, related } from "@/lib/catalog";
+import { getProduct, related, type Product } from "@/lib/catalog";
 import { formatPrice } from "@/lib/store-config";
 
 export const Route = createFileRoute("/product/$slug")({
@@ -48,10 +48,10 @@ export const Route = createFileRoute("/product/$slug")({
 });
 
 function ProductPage() {
-  const { product } = Route.useLoaderData();
+  const { product } = Route.useLoaderData() as { product: Product };
   const { add } = useCart();
   const [size, setSize] = useState<string | null>(null);
-  const [color, setColor] = useState(product.colors[0]);
+  const [color, setColor] = useState(product.colors[0]!);
   const soldOut = product.stock === 0;
   const suggestions = related(product.slug, product.category);
 
