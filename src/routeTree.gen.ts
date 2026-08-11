@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as BagRouteImport } from './routes/bag'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as ProductSlugRouteImport } from './routes/product.$slug'
 import { Route as ShopIndexRouteImport } from './routes/shop.index'
 import { Route as ShopCategoryRouteImport } from './routes/shop.$category'
 
@@ -25,9 +27,19 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BagRoute = BagRouteImport.update({
+  id: '/bag',
+  path: '/bag',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProductSlugRoute = ProductSlugRouteImport.update({
+  id: '/product/$slug',
+  path: '/product/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ShopIndexRoute = ShopIndexRouteImport.update({
@@ -44,14 +56,18 @@ const ShopCategoryRoute = ShopCategoryRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/bag': typeof BagRoute
   '/contact': typeof ContactRoute
+  '/product/$slug': typeof ProductSlugRoute
   '/shop/$category': typeof ShopCategoryRoute
   '/shop/': typeof ShopIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/bag': typeof BagRoute
   '/contact': typeof ContactRoute
+  '/product/$slug': typeof ProductSlugRoute
   '/shop/$category': typeof ShopCategoryRoute
   '/shop': typeof ShopIndexRoute
 }
@@ -59,22 +75,48 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/bag': typeof BagRoute
   '/contact': typeof ContactRoute
+  '/product/$slug': typeof ProductSlugRoute
   '/shop/$category': typeof ShopCategoryRoute
   '/shop/': typeof ShopIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/contact' | '/shop/$category' | '/shop/'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/bag'
+    | '/contact'
+    | '/product/$slug'
+    | '/shop/$category'
+    | '/shop/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/contact' | '/shop/$category' | '/shop'
-  id: '__root__' | '/' | '/about' | '/contact' | '/shop/$category' | '/shop/'
+  to:
+    | '/'
+    | '/about'
+    | '/bag'
+    | '/contact'
+    | '/product/$slug'
+    | '/shop/$category'
+    | '/shop'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/bag'
+    | '/contact'
+    | '/product/$slug'
+    | '/shop/$category'
+    | '/shop/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  BagRoute: typeof BagRoute
   ContactRoute: typeof ContactRoute
+  ProductSlugRoute: typeof ProductSlugRoute
   ShopCategoryRoute: typeof ShopCategoryRoute
   ShopIndexRoute: typeof ShopIndexRoute
 }
@@ -95,11 +137,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bag': {
+      id: '/bag'
+      path: '/bag'
+      fullPath: '/bag'
+      preLoaderRoute: typeof BagRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/contact': {
       id: '/contact'
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/product/$slug': {
+      id: '/product/$slug'
+      path: '/product/$slug'
+      fullPath: '/product/$slug'
+      preLoaderRoute: typeof ProductSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/shop/': {
@@ -122,7 +178,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  BagRoute: BagRoute,
   ContactRoute: ContactRoute,
+  ProductSlugRoute: ProductSlugRoute,
   ShopCategoryRoute: ShopCategoryRoute,
   ShopIndexRoute: ShopIndexRoute,
 }
