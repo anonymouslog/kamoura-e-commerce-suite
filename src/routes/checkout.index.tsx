@@ -26,7 +26,7 @@ export const Route = createFileRoute("/checkout/")({
       { property: "og:description", content: "Delivery details and order review." },
     ],
   }),
-  component: Checkout;
+  component: Checkout,
 });
 
 type Errors = Partial<Record<keyof OrderDetails, string>>;
