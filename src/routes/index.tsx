@@ -1,9 +1,12 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import hero from "@/assets/hero.jpg";
 import { ProductCard } from "@/components/site/ProductCard";
-import { categories, featured } from "@/lib/catalog";
+import { categories } from "@/lib/catalog";
+import { productsQuery } from "@/lib/catalog-queries";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -21,12 +24,14 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(productsQuery),
   component: Home,
 });
 
 function Home() {
   const [email, setEmail] = useState("");
-  const collection = featured();
+  const { data: products } = useSuspenseQuery(productsQuery);
+  const collection = products.filter((p) => p.featured).slice(0, 4);
 
   return (
     <>
@@ -116,10 +121,17 @@ function Home() {
         </p>
         <form
           className="mt-8 flex flex-col gap-3 sm:flex-row"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             if (!/.+@.+\..+/.test(email)) {
               toast.error("That email doesn't look right.");
+              return;
+            }
+            const { error } = await supabase
+              .from("newsletter_signups")
+              .insert({ email: email.trim().toLowerCase() });
+            if (error && !error.message.includes("duplicate")) {
+              toast.error("That didn't send. Try again in a moment.");
               return;
             }
             setEmail("");

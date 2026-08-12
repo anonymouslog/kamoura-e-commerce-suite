@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ProductCard } from "./ProductCard";
-import { allColors, allSizes, products, type CategorySlug } from "@/lib/catalog";
+import { allColors, allSizes, type Product } from "@/lib/catalog";
 import { formatPrice } from "@/lib/store-config";
 
 type Sort = "featured" | "price-asc" | "price-desc" | "name";
@@ -12,13 +12,16 @@ const sorts: { id: Sort; label: string }[] = [
   { id: "name", label: "Alphabetical" },
 ];
 
-const maxPrice = Math.max(...products.map((p) => p.price));
-
-export function Catalog({ category }: { category?: CategorySlug }) {
+export function Catalog({ products, category }: { products: Product[]; category?: string }) {
+  const maxPrice = useMemo(
+    () => Math.max(500000, ...products.map((p) => p.price)),
+    [products],
+  );
   const [size, setSize] = useState<string | null>(null);
   const [color, setColor] = useState<string | null>(null);
-  const [ceiling, setCeiling] = useState(maxPrice);
+  const [ceiling, setCeiling] = useState<number | null>(null);
   const [sort, setSort] = useState<Sort>("featured");
+  const cap = ceiling ?? maxPrice;
 
   const results = useMemo(() => {
     const list = products.filter(
@@ -26,7 +29,7 @@ export function Catalog({ category }: { category?: CategorySlug }) {
         (!category || p.category === category) &&
         (!size || p.sizes.includes(size)) &&
         (!color || p.colors.includes(color)) &&
-        p.price <= ceiling,
+        p.price <= cap,
     );
     const sorted = [...list];
     if (sort === "price-asc") sorted.sort((a, b) => a.price - b.price);
@@ -34,9 +37,9 @@ export function Catalog({ category }: { category?: CategorySlug }) {
     if (sort === "name") sorted.sort((a, b) => a.name.localeCompare(b.name));
     if (sort === "featured") sorted.sort((a, b) => Number(!!b.featured) - Number(!!a.featured));
     return sorted;
-  }, [category, size, color, ceiling, sort]);
+  }, [products, category, size, color, cap, sort]);
 
-  const filtered = size || color || ceiling < maxPrice;
+  const filtered = size || color || cap < maxPrice;
 
   return (
     <div className="mt-12 grid gap-10 lg:grid-cols-[220px_1fr]">
@@ -55,12 +58,12 @@ export function Catalog({ category }: { category?: CategorySlug }) {
             min={90000}
             max={maxPrice}
             step={5000}
-            value={ceiling}
+            value={cap}
             onChange={(e) => setCeiling(Number(e.target.value))}
             aria-label="Maximum price"
             className="mt-4 w-full accent-[var(--color-gold)]"
           />
-          <p className="numeral mt-2 text-sm text-silver">{formatPrice(ceiling)}</p>
+          <p className="numeral mt-2 text-sm text-silver">{formatPrice(cap)}</p>
         </div>
         {filtered && (
           <button
@@ -68,7 +71,7 @@ export function Catalog({ category }: { category?: CategorySlug }) {
             onClick={() => {
               setSize(null);
               setColor(null);
-              setCeiling(maxPrice);
+              setCeiling(null);
             }}
             className="text-xs uppercase tracking-[0.18em] text-gold hover:text-ivory"
           >
