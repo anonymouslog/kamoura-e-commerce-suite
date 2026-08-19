@@ -4,13 +4,15 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { getRequest } from "@tanstack/react-start/server";
+import type { ReactNode } from "react";
 
+import hero from "@/assets/hero.jpg";
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CartProvider } from "@/lib/cart";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
@@ -41,9 +43,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -94,8 +93,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content: "Coats, knitwear, shirting and tailoring made in limited runs.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "Kamoura" },
+      { property: "og:image", content: hero },
+      { name: "twitter:image", content: hero },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "theme-color", content: "#f7f4ee" },
     ],
     links: [
       {
@@ -103,11 +105,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/site.webmanifest" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
       },
     ],
   }),
@@ -118,9 +122,61 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // Determine theme on the server from a cookie if available so SSR matches
+  // the client. If no cookie is present, the server will fall back to no
+  // explicit class (client will apply system preference) — to avoid
+  // mismatches for returning users, we prefer cookie-driven rendering.
+  let serverTheme: "light" | "dark" | null = null;
+  try {
+    if (typeof window === "undefined") {
+      const req = getRequest();
+      const cookie = req?.headers.get("cookie") ?? "";
+      const match = cookie.match(/(?:^|; )kamoura-theme=(dark|light)(?:;|$)/);
+      if (match) serverTheme = match[1] as "light" | "dark";
+    }
+  } catch (e) {
+    // ignore — fallback to client-side handling
+  }
+
+  const htmlProps: any = { lang: "en" };
+  if (serverTheme === "dark") {
+    htmlProps.className = "dark";
+    htmlProps.style = { colorScheme: "dark" };
+  } else if (serverTheme === "light") {
+    // explicit light theme can set color-scheme for consistency
+    htmlProps.style = { colorScheme: "light" };
+  }
+
   return (
-    <html lang="en">
+    // Render html with server-side theme when available to prevent
+    // hydration mismatches. The inline script below will still set the
+    // theme early on the client if no cookie exists.
+    // eslint-disable-next-line jsx-a11y/html-has-lang
+    <html {...htmlProps}>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  // Prefer cookie (set by ThemeToggle) so server and client
+                  // agree. Fall back to localStorage then prefers-color-scheme.
+                  function readCookie(name) {
+                    var m = document.cookie.match('(?:^|; )' + name + '=([^;]*)');
+                    return m ? decodeURIComponent(m[1]) : null;
+                  }
+                  var key = "kamoura-theme";
+                  var theme = readCookie(key) || (localStorage && localStorage.getItem && localStorage.getItem(key));
+                  if (!theme) {
+                    theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+                  }
+                  document.documentElement.classList.toggle("dark", theme === "dark");
+                  document.documentElement.style.colorScheme = theme;
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
         <HeadContent />
       </head>
       <body>
@@ -133,20 +189,28 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
 
   return (
     <QueryClientProvider client={queryClient}>
-      <CartProvider>
-        <div className="flex min-h-screen flex-col">
-          <Header />
-          <main className="flex-1">
-            {/* Required: nested routes render here. */}
-            <Outlet />
-          </main>
-          <Footer />
-        </div>
-        <Toaster />
-      </CartProvider>
+      {isAdminRoute ? (
+        <>
+          <Outlet />
+          <Toaster />
+        </>
+      ) : (
+        <CartProvider>
+          <div className="flex min-h-screen flex-col">
+            <Header />
+            <main className="flex-1">
+              <Outlet />
+            </main>
+            <Footer />
+          </div>
+          <Toaster />
+        </CartProvider>
+      )}
     </QueryClientProvider>
   );
 }

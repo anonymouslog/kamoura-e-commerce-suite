@@ -1,14 +1,12 @@
 -- =============================================================================
--- KAMOURA — Supabase schema (run this once when you connect a project)
+-- Kamoura Supabase baseline schema
 --
--- Nothing in the app talks to Supabase yet. This file is the migration to run
--- in the Supabase SQL editor (or as supabase/migrations/0001_init.sql) when you
--- are ready. Order matters: table -> grants -> RLS -> policies.
+-- Apply this to a fresh Supabase project. It is idempotent enough for repeated
+-- runs on a clean database, but it is not a destructive reset script.
 -- =============================================================================
 
 create extension if not exists "pgcrypto";
 
--- ---------- enums ------------------------------------------------------------
 do $$ begin
   create type public.app_role as enum ('admin', 'staff', 'customer');
 exception when duplicate_object then null; end $$;
@@ -23,12 +21,17 @@ do $$ begin
   );
 exception when duplicate_object then null; end $$;
 
--- ---------- helper: updated_at ------------------------------------------------
 create or replace function public.touch_updated_at()
-returns trigger language plpgsql as $$
-begin new.updated_at = now(); return new; end $$;
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end
+$$;
 
--- ---------- profiles ---------------------------------------------------------
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text,
@@ -37,59 +40,85 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-grant select, insert, update on public.profiles to authenticated;
-grant all on public.profiles to service_role;
 alter table public.profiles enable row level security;
-create policy "profiles: read own" on public.profiles
-  for select to authenticated using (id = auth.uid());
-create policy "profiles: insert own" on public.profiles
-  for insert to authenticated with check (id = auth.uid());
-create policy "profiles: update own" on public.profiles
-  for update to authenticated using (id = auth.uid());
 
+do $$ begin
+  create policy "profiles: read own" on public.profiles
+    for select to authenticated using (id = auth.uid());
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "profiles: insert own" on public.profiles
+    for insert to authenticated with check (id = auth.uid());
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "profiles: update own" on public.profiles
+    for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
+exception when duplicate_object then null; end $$;
+
+drop trigger if exists profiles_touch on public.profiles;
 create trigger profiles_touch before update on public.profiles
   for each row execute function public.touch_updated_at();
 
--- Auto-create a profile row on signup.
 create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
   insert into public.profiles (id, full_name)
   values (new.id, new.raw_user_meta_data->>'full_name')
   on conflict (id) do nothing;
   return new;
-end $$;
+end
+$$;
+
+revoke all on function public.handle_new_user() from public, anon, authenticated;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- ---------- roles (NEVER store roles on profiles) ----------------------------
 create table if not exists public.user_roles (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   role public.app_role not null,
+  created_at timestamptz not null default now(),
   unique (user_id, role)
 );
-grant select on public.user_roles to authenticated;
-grant all on public.user_roles to service_role;
 alter table public.user_roles enable row level security;
 
 create or replace function public.has_role(_user_id uuid, _role public.app_role)
-returns boolean language sql stable security definer set search_path = public as $$
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
   select exists (
-    select 1 from public.user_roles
+    select 1
+    from public.user_roles
     where user_id = _user_id and role = _role
   )
 $$;
 
-create policy "user_roles: read own" on public.user_roles
-  for select to authenticated using (user_id = auth.uid());
-create policy "user_roles: admins manage" on public.user_roles
-  for all to authenticated using (public.has_role(auth.uid(), 'admin'))
-  with check (public.has_role(auth.uid(), 'admin'));
+revoke all on function public.has_role(uuid, public.app_role) from public, anon;
+grant execute on function public.has_role(uuid, public.app_role) to authenticated;
 
--- ---------- catalogue --------------------------------------------------------
+do $$ begin
+  create policy "user_roles: read own" on public.user_roles
+    for select to authenticated using (user_id = auth.uid());
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "user_roles: admins manage" on public.user_roles
+    for all to authenticated
+    using (public.has_role(auth.uid(), 'admin'))
+    with check (public.has_role(auth.uid(), 'admin'));
+exception when duplicate_object then null; end $$;
+
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,
@@ -98,108 +127,56 @@ create table if not exists public.categories (
   parent_id uuid references public.categories(id) on delete set null,
   sort_order int not null default 0
 );
-grant select on public.categories to anon, authenticated;
-grant all on public.categories to service_role;
 alter table public.categories enable row level security;
-create policy "categories: public read" on public.categories for select to anon, authenticated using (true);
-create policy "categories: admins write" on public.categories
-  for all to authenticated using (public.has_role(auth.uid(), 'admin'))
-  with check (public.has_role(auth.uid(), 'admin'));
+
+do $$ begin
+  create policy "categories: public read" on public.categories
+    for select to anon, authenticated using (true);
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "categories: admins write" on public.categories
+    for all to authenticated
+    using (public.has_role(auth.uid(), 'admin'))
+    with check (public.has_role(auth.uid(), 'admin'));
+exception when duplicate_object then null; end $$;
 
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,
   name text not null,
-  description text,
+  description text not null default '',
   details text[] not null default '{}',
   base_price numeric(12,2) not null check (base_price >= 0),
-  category_id uuid references public.categories(id) on delete set null,
+  category_slug text not null references public.categories(slug) on update cascade on delete restrict,
   status public.product_status not null default 'draft',
   is_featured boolean not null default false,
+  sizes text[] not null default '{}',
+  colors text[] not null default '{}',
+  stock int not null default 0 check (stock >= 0),
+  image_key text,
+  image_url text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-grant select on public.products to anon, authenticated;
-grant all on public.products to service_role;
 alter table public.products enable row level security;
-create policy "products: public read active" on public.products
-  for select to anon, authenticated using (status = 'active');
-create policy "products: admins all" on public.products
-  for all to authenticated using (public.has_role(auth.uid(), 'admin'))
-  with check (public.has_role(auth.uid(), 'admin'));
+
+do $$ begin
+  create policy "products: public read active" on public.products
+    for select to anon, authenticated using (status = 'active');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "products: admins all" on public.products
+    for all to authenticated
+    using (public.has_role(auth.uid(), 'admin'))
+    with check (public.has_role(auth.uid(), 'admin'));
+exception when duplicate_object then null; end $$;
+
+drop trigger if exists products_touch on public.products;
 create trigger products_touch before update on public.products
   for each row execute function public.touch_updated_at();
 
-create table if not exists public.product_variants (
-  id uuid primary key default gen_random_uuid(),
-  product_id uuid not null references public.products(id) on delete cascade,
-  size text not null,
-  color text not null,
-  sku text not null unique,
-  price_override numeric(12,2) check (price_override >= 0),
-  stock_quantity int not null default 0 check (stock_quantity >= 0),
-  unique (product_id, size, color)
-);
-grant select on public.product_variants to anon, authenticated;
-grant all on public.product_variants to service_role;
-alter table public.product_variants enable row level security;
-create policy "variants: public read" on public.product_variants
-  for select to anon, authenticated using (
-    exists (select 1 from public.products p where p.id = product_id and p.status = 'active')
-  );
-create policy "variants: admins all" on public.product_variants
-  for all to authenticated using (public.has_role(auth.uid(), 'admin'))
-  with check (public.has_role(auth.uid(), 'admin'));
-
-create table if not exists public.product_images (
-  id uuid primary key default gen_random_uuid(),
-  product_id uuid not null references public.products(id) on delete cascade,
-  variant_id uuid references public.product_variants(id) on delete set null,
-  storage_path text not null,           -- path inside the 'product-images' bucket
-  alt_text text not null default '',
-  sort_order int not null default 0
-);
-grant select on public.product_images to anon, authenticated;
-grant all on public.product_images to service_role;
-alter table public.product_images enable row level security;
-create policy "images: public read" on public.product_images
-  for select to anon, authenticated using (true);
-create policy "images: admins all" on public.product_images
-  for all to authenticated using (public.has_role(auth.uid(), 'admin'))
-  with check (public.has_role(auth.uid(), 'admin'));
-
--- ---------- carts ------------------------------------------------------------
-create table if not exists public.carts (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id) on delete cascade,
-  session_token text unique,            -- guest bag, held in an httpOnly cookie
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-grant select, insert, update, delete on public.carts to authenticated;
-grant all on public.carts to service_role;
-alter table public.carts enable row level security;
-create policy "carts: own" on public.carts
-  for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
-
-create table if not exists public.cart_items (
-  id uuid primary key default gen_random_uuid(),
-  cart_id uuid not null references public.carts(id) on delete cascade,
-  variant_id uuid not null references public.product_variants(id) on delete cascade,
-  quantity int not null default 1 check (quantity > 0),
-  unique (cart_id, variant_id)
-);
-grant select, insert, update, delete on public.cart_items to authenticated;
-grant all on public.cart_items to service_role;
-alter table public.cart_items enable row level security;
-create policy "cart_items: own" on public.cart_items
-  for all to authenticated using (
-    exists (select 1 from public.carts c where c.id = cart_id and c.user_id = auth.uid())
-  ) with check (
-    exists (select 1 from public.carts c where c.id = cart_id and c.user_id = auth.uid())
-  );
-
--- ---------- addresses --------------------------------------------------------
 create table if not exists public.addresses (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -215,28 +192,25 @@ create table if not exists public.addresses (
   is_default boolean not null default false,
   created_at timestamptz not null default now()
 );
-grant select, insert, update, delete on public.addresses to authenticated;
-grant all on public.addresses to service_role;
 alter table public.addresses enable row level security;
-create policy "addresses: own" on public.addresses
-  for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
 
--- ---------- orders -----------------------------------------------------------
--- No payment provider: an order is delivered to the studio over WhatsApp/email.
--- notified_channel records how it was handed over.
+do $$ begin
+  create policy "addresses: own" on public.addresses
+    for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+exception when duplicate_object then null; end $$;
+
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
-  reference text not null unique,       -- KMR-260811-A1B2
+  reference text not null unique,
   user_id uuid references auth.users(id) on delete set null,
   status public.order_status not null default 'placed',
   contact_name text not null,
   contact_phone text not null,
   contact_email text not null,
-  shipping_address jsonb not null,      -- snapshot, not a live join
+  shipping_address jsonb not null,
   shipping_method text not null,
   subtotal numeric(12,2) not null,
   shipping_cost numeric(12,2) not null default 0,
-  discount numeric(12,2) not null default 0,
   total numeric(12,2) not null,
   customer_note text,
   notified_channel text check (notified_channel in ('whatsapp', 'email')),
@@ -245,42 +219,90 @@ create table if not exists public.orders (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-grant select, insert on public.orders to authenticated;
-grant all on public.orders to service_role;
 alter table public.orders enable row level security;
-create policy "orders: read own" on public.orders
-  for select to authenticated using (user_id = auth.uid());
-create policy "orders: create own" on public.orders
-  for insert to authenticated with check (user_id = auth.uid());
-create policy "orders: admins all" on public.orders
-  for all to authenticated using (public.has_role(auth.uid(), 'admin'))
-  with check (public.has_role(auth.uid(), 'admin'));
+
+do $$ begin
+  create policy "orders: read own" on public.orders
+    for select to authenticated using (user_id = auth.uid());
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "orders: create own" on public.orders
+    for insert to authenticated
+    with check (user_id = auth.uid() or user_id is null);
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "orders: create guest" on public.orders
+    for insert to anon
+    with check (user_id is null);
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "orders: admins all" on public.orders
+    for all to authenticated
+    using (public.has_role(auth.uid(), 'admin'))
+    with check (public.has_role(auth.uid(), 'admin'));
+exception when duplicate_object then null; end $$;
+
+drop trigger if exists orders_touch on public.orders;
 create trigger orders_touch before update on public.orders
   for each row execute function public.touch_updated_at();
 
--- Price is snapshotted here. Never join back to live product price for history.
 create table if not exists public.order_items (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references public.orders(id) on delete cascade,
-  variant_id uuid references public.product_variants(id) on delete set null,
+  product_slug text references public.products(slug) on update cascade on delete set null,
   product_name text not null,
-  variant_label text not null,          -- 'M / Ivory'
-  sku text,
+  variant_label text not null,
   quantity int not null check (quantity > 0),
-  unit_price_at_purchase numeric(12,2) not null
+  unit_price_at_purchase numeric(12,2) not null,
+  image_url text
 );
-grant select, insert on public.order_items to authenticated;
-grant all on public.order_items to service_role;
 alter table public.order_items enable row level security;
-create policy "order_items: read own" on public.order_items
-  for select to authenticated using (
-    exists (select 1 from public.orders o where o.id = order_id and o.user_id = auth.uid())
-  );
-create policy "order_items: admins all" on public.order_items
-  for all to authenticated using (public.has_role(auth.uid(), 'admin'))
-  with check (public.has_role(auth.uid(), 'admin'));
 
--- ---------- order status timeline -------------------------------------------
+do $$ begin
+  create policy "order_items: read own" on public.order_items
+    for select to authenticated using (
+      exists (
+        select 1
+        from public.orders o
+        where o.id = order_id and o.user_id = auth.uid()
+      )
+    );
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "order_items: create own" on public.order_items
+    for insert to authenticated
+    with check (
+      exists (
+        select 1
+        from public.orders o
+        where o.id = order_id and (o.user_id = auth.uid() or o.user_id is null)
+      )
+    );
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "order_items: create guest" on public.order_items
+    for insert to anon
+    with check (
+      exists (
+        select 1
+        from public.orders o
+        where o.id = order_id and o.user_id is null
+      )
+    );
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "order_items: admins all" on public.order_items
+    for all to authenticated
+    using (public.has_role(auth.uid(), 'admin'))
+    with check (public.has_role(auth.uid(), 'admin'));
+exception when duplicate_object then null; end $$;
+
 create table if not exists public.order_events (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references public.orders(id) on delete cascade,
@@ -288,62 +310,212 @@ create table if not exists public.order_events (
   note text,
   created_at timestamptz not null default now()
 );
-grant select on public.order_events to authenticated;
-grant all on public.order_events to service_role;
 alter table public.order_events enable row level security;
-create policy "order_events: read own" on public.order_events
-  for select to authenticated using (
-    exists (select 1 from public.orders o where o.id = order_id and o.user_id = auth.uid())
-  );
-create policy "order_events: admins all" on public.order_events
-  for all to authenticated using (public.has_role(auth.uid(), 'admin'))
-  with check (public.has_role(auth.uid(), 'admin'));
 
--- ---------- wishlist ---------------------------------------------------------
+do $$ begin
+  create policy "order_events: read own" on public.order_events
+    for select to authenticated using (
+      exists (
+        select 1
+        from public.orders o
+        where o.id = order_id and o.user_id = auth.uid()
+      )
+    );
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "order_events: admins all" on public.order_events
+    for all to authenticated
+    using (public.has_role(auth.uid(), 'admin'))
+    with check (public.has_role(auth.uid(), 'admin'));
+exception when duplicate_object then null; end $$;
+
 create table if not exists public.wishlist_items (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  product_id uuid not null references public.products(id) on delete cascade,
+  product_slug text not null references public.products(slug) on update cascade on delete cascade,
   created_at timestamptz not null default now(),
-  unique (user_id, product_id)
+  unique (user_id, product_slug)
 );
-grant select, insert, delete on public.wishlist_items to authenticated;
-grant all on public.wishlist_items to service_role;
 alter table public.wishlist_items enable row level security;
-create policy "wishlist: own" on public.wishlist_items
-  for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
 
--- ---------- newsletter -------------------------------------------------------
+do $$ begin
+  create policy "wishlist: own" on public.wishlist_items
+    for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+exception when duplicate_object then null; end $$;
+
 create table if not exists public.newsletter_signups (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
   created_at timestamptz not null default now()
 );
-grant insert on public.newsletter_signups to anon, authenticated;
-grant all on public.newsletter_signups to service_role;
 alter table public.newsletter_signups enable row level security;
-create policy "newsletter: anyone may sign up" on public.newsletter_signups
-  for insert to anon, authenticated with check (true);
-create policy "newsletter: admins read" on public.newsletter_signups
-  for select to authenticated using (public.has_role(auth.uid(), 'admin'));
 
--- ---------- indexes ----------------------------------------------------------
-create index if not exists products_category_idx on public.products(category_id);
+do $$ begin
+  create policy "newsletter: anyone signs up" on public.newsletter_signups
+    for insert to anon, authenticated with check (
+      email = lower(trim(email))
+      and email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+      and char_length(email) between 5 and 160
+    );
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "newsletter: admins read" on public.newsletter_signups
+    for select to authenticated using (public.has_role(auth.uid(), 'admin'));
+exception when duplicate_object then null; end $$;
+
+create index if not exists categories_parent_idx on public.categories(parent_id);
+create index if not exists categories_sort_idx on public.categories(sort_order);
+create index if not exists products_category_idx on public.products(category_slug);
 create index if not exists products_status_idx on public.products(status);
-create index if not exists variants_product_idx on public.product_variants(product_id);
-create index if not exists images_product_idx on public.product_images(product_id);
+create index if not exists products_featured_idx on public.products(is_featured, status);
 create index if not exists orders_user_idx on public.orders(user_id);
 create index if not exists order_items_order_idx on public.order_items(order_id);
+create index if not exists wishlist_user_idx on public.wishlist_items(user_id);
 
--- ---------- storage ----------------------------------------------------------
-insert into storage.buckets (id, name, public)
-values ('product-images', 'product-images', true)
-on conflict (id) do nothing;
+insert into public.categories (slug, name, blurb, sort_order)
+values
+  ('outerwear', 'Outerwear', 'Coats cut long and unhurried.', 1),
+  ('knitwear', 'Knitwear', 'Cashmere and merino, nothing louder.', 2),
+  ('shirting', 'Shirting', 'Silk and poplin, softly structured.', 3),
+  ('trousers', 'Trousers', 'Wool tailoring with a clean break.', 4)
+on conflict (slug) do nothing;
 
-create policy "product images: public read"
-  on storage.objects for select to anon, authenticated
-  using (bucket_id = 'product-images');
-create policy "product images: admins write"
-  on storage.objects for all to authenticated
-  using (bucket_id = 'product-images' and public.has_role(auth.uid(), 'admin'))
-  with check (bucket_id = 'product-images' and public.has_role(auth.uid(), 'admin'));
+insert into public.products (
+  slug,
+  name,
+  description,
+  details,
+  base_price,
+  category_slug,
+  status,
+  is_featured,
+  sizes,
+  colors,
+  stock,
+  image_key,
+  image_url
+)
+values
+  (
+    'atlas-wool-overcoat',
+    'Atlas Wool Overcoat',
+    'A single-breasted overcoat in double-faced Italian wool, cut a little longer than the body asks for. Unlined shoulders keep the drape quiet.',
+    array['92% virgin wool, 8% cashmere', 'Horn buttons', 'Made in Portugal'],
+    389000,
+    'outerwear',
+    'active',
+    true,
+    array['XS', 'S', 'M', 'L', 'XL'],
+    array['Black', 'Charcoal'],
+    6,
+    'p4',
+    null
+  ),
+  (
+    'lune-silk-shirt',
+    'Lune Silk Shirt',
+    'Sand-washed silk with a relaxed collar and a slightly dropped shoulder. It creases; that is the point.',
+    array['100% mulberry silk', 'Mother-of-pearl buttons', 'Cold hand wash'],
+    148000,
+    'shirting',
+    'active',
+    true,
+    array['XS', 'S', 'M', 'L'],
+    array['Ivory', 'Bone'],
+    11,
+    'p1',
+    null
+  ),
+  (
+    'meridian-cashmere-knit',
+    'Meridian Cashmere Knit',
+    'Grade-A Mongolian cashmere knitted at a mid gauge, with a rib collar that holds its shape through the season.',
+    array['100% cashmere', 'Mid-gauge knit', 'Made in Scotland'],
+    212000,
+    'knitwear',
+    'active',
+    true,
+    array['S', 'M', 'L', 'XL'],
+    array['Camel', 'Fog'],
+    9,
+    'p3',
+    null
+  ),
+  (
+    'solstice-wool-trouser',
+    'Solstice Wool Trouser',
+    'A high-rise trouser in tropical wool with a single forward pleat and a full break at the ankle.',
+    array['Tropical wool', 'Hook-and-bar closure', 'Unfinished hem on request'],
+    164000,
+    'trousers',
+    'active',
+    true,
+    array['28', '30', '32', '34', '36'],
+    array['Charcoal', 'Black'],
+    14,
+    'p2',
+    null
+  ),
+  (
+    'harbour-poplin-shirt',
+    'Harbour Poplin Shirt',
+    'Compact cotton poplin, cut boxy through the body. The everyday shirt in the house rotation.',
+    array['Egyptian cotton poplin', 'Single-needle side seams'],
+    96000,
+    'shirting',
+    'active',
+    false,
+    array['XS', 'S', 'M', 'L', 'XL'],
+    array['Ivory'],
+    22,
+    'p1',
+    null
+  ),
+  (
+    'nocturne-tailored-trouser',
+    'Nocturne Tailored Trouser',
+    'A narrower cousin to the Solstice, in a matte wool that reads almost black under most light.',
+    array['Super 110s wool', 'Flat front', 'Made in Italy'],
+    178000,
+    'trousers',
+    'active',
+    false,
+    array['30', '32', '34', '36'],
+    array['Black'],
+    7,
+    'p2',
+    null
+  ),
+  (
+    'vesper-merino-crew',
+    'Vesper Merino Crew',
+    'Fine merino with a close crew neck — the layer that disappears under a coat.',
+    array['Extra-fine merino', 'Fully fashioned sleeves'],
+    118000,
+    'knitwear',
+    'active',
+    false,
+    array['S', 'M', 'L'],
+    array['Camel', 'Black'],
+    0,
+    'p3',
+    null
+  ),
+  (
+    'eclipse-belted-coat',
+    'Eclipse Belted Coat',
+    'A wrap coat with a self belt and no visible closure, in a brushed wool that softens with wear.',
+    array['Brushed wool blend', 'Self belt', 'Made in Portugal'],
+    425000,
+    'outerwear',
+    'active',
+    false,
+    array['XS', 'S', 'M', 'L'],
+    array['Ivory', 'Black'],
+    4,
+    'p4',
+    null
+  )
+on conflict (slug) do nothing;

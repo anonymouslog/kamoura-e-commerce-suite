@@ -34,7 +34,8 @@ export type ProductRow = {
   stock: number;
   image_key: string | null;
   image_url: string | null;
-  is_featured: boolean;
+  featured?: boolean;
+  is_featured?: boolean;
 };
 
 const bundledImages: Record<string, string> = { p1, p2, p3, p4 };
@@ -55,7 +56,7 @@ export function mapProduct(row: ProductRow): Product {
     sizes: row.sizes ?? [],
     colors: row.colors ?? [],
     image: productImage(row),
-    featured: row.is_featured,
+    featured: row.featured ?? row.is_featured ?? false,
     stock: row.stock,
   };
 }

@@ -5,12 +5,12 @@ import { useCart } from "@/lib/cart";
 import {
   buildOrderMessage,
   mailtoUrl,
-  orderReference,
   orderSchema,
   shippingCost,
   whatsappUrl,
   type OrderDetails,
 } from "@/lib/order";
+import { placeOrder } from "@/lib/checkout.functions";
 import { formatPrice, storeConfig } from "@/lib/store-config";
 
 export const Route = createFileRoute("/checkout/")({
@@ -24,6 +24,7 @@ export const Route = createFileRoute("/checkout/")({
       },
       { property: "og:title", content: "Checkout — Kamoura" },
       { property: "og:description", content: "Delivery details and order review." },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: Checkout,
@@ -50,6 +51,7 @@ function Checkout() {
   const navigate = useNavigate();
   const [form, setForm] = useState<OrderDetails>(empty);
   const [errors, setErrors] = useState<Errors>({});
+  const [placing, setPlacing] = useState<"whatsapp" | "email" | null>(null);
 
   const shipping = shippingCost(form.shippingMethod);
   const total = subtotal + shipping;
@@ -87,14 +89,65 @@ function Checkout() {
       toast.error("A few details still need checking.");
       return;
     }
+    if (channel === "whatsapp" && !storeConfig.whatsappNumber) {
+      toast.error("WhatsApp orders are not configured yet.");
+      return;
+    }
+    if (channel === "email" && !storeConfig.orderEmail) {
+      toast.error("Order email is not configured yet.");
+      return;
+    }
 
-    const reference = orderReference();
-    const message = buildOrderMessage({ reference, details: parsed.data, items, subtotal });
-    const url = channel === "whatsapp" ? whatsappUrl(message) : mailtoUrl(reference, message);
+    (async () => {
+      setPlacing(channel);
+      let order;
+      try {
+        order = await placeOrder.fetch({
+          channel,
+          contact_name: parsed.data.fullName,
+          contact_phone: parsed.data.phone,
+          contact_email: parsed.data.email,
+          shipping_method: parsed.data.shippingMethod,
+          customer_note: parsed.data.note ?? null,
+          address: {
+            line1: parsed.data.line1,
+            line2: parsed.data.line2 ?? null,
+            city: parsed.data.city,
+            state: parsed.data.state,
+            postal_code: parsed.data.postalCode ?? null,
+            country: parsed.data.country,
+          },
+          items: items.map((i) => ({
+            slug: i.slug,
+            size: i.size,
+            color: i.color,
+            quantity: i.quantity,
+          })),
+        });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to save order.");
+        setPlacing(null);
+        return;
+      }
 
-    window.open(url, "_blank", "noopener,noreferrer");
-    clear();
-    void navigate({ to: "/checkout/success", search: { ref: reference, via: channel } });
+      const message = buildOrderMessage({
+        reference: order.reference,
+        details: parsed.data,
+        items: order.items,
+        subtotal: order.subtotal,
+        shipping: order.shippingCost,
+        total: order.total,
+      });
+      if (order.notificationDelivered) {
+        toast.success("Your order was sent to the Kamoura team.");
+      } else {
+        const url = channel === "whatsapp" ? whatsappUrl(message) : mailtoUrl(order.reference, message);
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+      clear();
+      void navigate({ to: "/checkout/success", search: { ref: order.reference, via: channel } });
+      setPlacing(null);
+    })();
   };
 
   return (
@@ -110,15 +163,36 @@ function Checkout() {
           <fieldset className="space-y-5">
             <legend className="eyebrow">Who we are shipping to</legend>
             <div className="grid gap-5 sm:grid-cols-2">
-              <Input label="Full name" value={form.fullName} onChange={set("fullName")} error={errors.fullName} />
-              <Input label="Phone (WhatsApp)" value={form.phone} onChange={set("phone")} error={errors.phone} />
+              <Input
+                label="Full name"
+                value={form.fullName}
+                onChange={set("fullName")}
+                error={errors.fullName}
+              />
+              <Input
+                label="Phone (WhatsApp)"
+                value={form.phone}
+                onChange={set("phone")}
+                error={errors.phone}
+              />
             </div>
-            <Input label="Email" type="email" value={form.email} onChange={set("email")} error={errors.email} />
+            <Input
+              label="Email"
+              type="email"
+              value={form.email}
+              onChange={set("email")}
+              error={errors.email}
+            />
           </fieldset>
 
           <fieldset className="space-y-5">
             <legend className="eyebrow">Delivery address</legend>
-            <Input label="Address line 1" value={form.line1} onChange={set("line1")} error={errors.line1} />
+            <Input
+              label="Address line 1"
+              value={form.line1}
+              onChange={set("line1")}
+              error={errors.line1}
+            />
             <Input
               label="Address line 2 (optional)"
               value={form.line2 ?? ""}
@@ -126,14 +200,24 @@ function Checkout() {
             />
             <div className="grid gap-5 sm:grid-cols-3">
               <Input label="City" value={form.city} onChange={set("city")} error={errors.city} />
-              <Input label="State" value={form.state} onChange={set("state")} error={errors.state} />
+              <Input
+                label="State"
+                value={form.state}
+                onChange={set("state")}
+                error={errors.state}
+              />
               <Input
                 label="Postal code"
                 value={form.postalCode ?? ""}
                 onChange={set("postalCode")}
               />
             </div>
-            <Input label="Country" value={form.country} onChange={set("country")} error={errors.country} />
+            <Input
+              label="Country"
+              value={form.country}
+              onChange={set("country")}
+              error={errors.country}
+            />
           </fieldset>
 
           <fieldset className="space-y-4">
@@ -213,16 +297,18 @@ function Checkout() {
           <button
             type="button"
             onClick={() => place("whatsapp")}
+            disabled={placing !== null}
             className="mt-7 w-full border border-gold bg-gold px-7 py-4 text-xs uppercase tracking-[0.2em] text-primary-foreground transition-colors hover:bg-gold-soft hover:text-ivory"
           >
-            Place order on WhatsApp
+            {placing === "whatsapp" ? "Creating order..." : "Place order on WhatsApp"}
           </button>
           <button
             type="button"
             onClick={() => place("email")}
+            disabled={placing !== null}
             className="mt-3 w-full border border-border px-7 py-4 text-xs uppercase tracking-[0.2em] text-ivory transition-colors hover:border-gold-soft"
           >
-            Place order by email
+            {placing === "email" ? "Creating order..." : "Place order by email"}
           </button>
         </aside>
       </div>

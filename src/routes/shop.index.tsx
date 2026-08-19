@@ -1,5 +1,7 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Catalog } from "@/components/site/Catalog";
+import { productsQuery } from "@/lib/catalog-queries";
 
 export const Route = createFileRoute("/shop/")({
   head: () => ({
@@ -14,10 +16,13 @@ export const Route = createFileRoute("/shop/")({
       { property: "og:description", content: "The full catalogue, filterable by size and colour." },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(productsQuery),
   component: Shop,
 });
 
 function Shop() {
+  const { data: products } = useSuspenseQuery(productsQuery);
+
   return (
     <div className="mx-auto max-w-[1400px] px-5 py-16 sm:px-8">
       <p className="eyebrow">The collection</p>
@@ -26,7 +31,7 @@ function Shop() {
         Twelve pieces in rotation. What is listed is in the studio; what is sold out will return
         only if the cloth does.
       </p>
-      <Catalog />
+      <Catalog products={products} />
     </div>
   );
 }

@@ -18,20 +18,23 @@ const addressInput = z.object({
 export const getMyAccount = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const [profile, roles] = await Promise.all([
+    const [profile, roles, user] = await Promise.all([
       context.supabase.from("profiles").select("*").eq("id", context.userId).maybeSingle(),
       context.supabase.from("user_roles").select("role").eq("user_id", context.userId),
+      context.supabase.auth.getUser(),
     ]);
     if (profile.error) throw new Error(profile.error.message);
     return {
+      email: user.data.user?.email ?? null,
       profile: profile.data,
       roles: (roles.data ?? []).map((r) => r.role as string),
+      last_sign_in_at: user.data.user?.last_sign_in_at ?? null,
     };
   });
 
 export const updateMyProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .validator((input) =>
     z
       .object({
         full_name: z.string().trim().max(120).optional(),
@@ -62,8 +65,16 @@ export const listMyAddresses = createServerFn({ method: "GET" })
 
 export const addMyAddress = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => addressInput.parse(input))
+  .validator((input) => addressInput.parse(input))
   .handler(async ({ context, data }) => {
+    if (data.is_default) {
+      const { error: clearError } = await context.supabase
+        .from("addresses")
+        .update({ is_default: false })
+        .eq("user_id", context.userId)
+        .eq("is_default", true);
+      if (clearError) throw new Error(clearError.message);
+    }
     const { error } = await context.supabase
       .from("addresses")
       .insert({ ...data, user_id: context.userId });
@@ -73,7 +84,7 @@ export const addMyAddress = createServerFn({ method: "POST" })
 
 export const deleteMyAddress = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .validator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ context, data }) => {
     const { error } = await context.supabase.from("addresses").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -96,7 +107,7 @@ export const listMyWishlist = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("wishlist_items")
-      .select("id,product_slug,created_at,products(name,price,image_key,image_url)")
+      .select("id,product_slug,created_at,products(name,price:base_price,image_key,image_url)")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -104,7 +115,7 @@ export const listMyWishlist = createServerFn({ method: "GET" })
 
 export const toggleWishlist = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ slug: z.string().min(1).max(120) }).parse(input))
+  .validator((input) => z.object({ slug: z.string().min(1).max(120) }).parse(input))
   .handler(async ({ context, data }) => {
     const existing = await context.supabase
       .from("wishlist_items")

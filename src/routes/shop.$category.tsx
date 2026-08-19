@@ -1,6 +1,8 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { Catalog } from "@/components/site/Catalog";
 import { getCategory, type CategorySlug } from "@/lib/catalog";
+import { productsQuery } from "@/lib/catalog-queries";
 
 export const Route = createFileRoute("/shop/$category")({
   loader: ({ params }) => {
@@ -27,6 +29,7 @@ export const Route = createFileRoute("/shop/$category")({
 
 function CategoryPage() {
   const { category } = Route.useLoaderData();
+  const { data: products } = useSuspenseQuery(productsQuery);
 
   return (
     <div className="mx-auto max-w-[1400px] px-5 py-16 sm:px-8">
@@ -39,7 +42,7 @@ function CategoryPage() {
       </nav>
       <h1 className="mt-5 font-display text-4xl text-ivory sm:text-5xl">{category.name}</h1>
       <p className="mt-4 max-w-lg text-sm text-grey">{category.blurb}</p>
-      <Catalog category={category.slug as CategorySlug} />
+      <Catalog products={products} category={category.slug as CategorySlug} />
     </div>
   );
 }

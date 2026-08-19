@@ -4,7 +4,10 @@ import { mapProduct, type ProductRow } from "./catalog";
 
 export const productsQuery = queryOptions({
   queryKey: ["products"],
-  queryFn: async () => ((await listProducts()) as ProductRow[]).map(mapProduct),
+  queryFn: async () => {
+    const rows = (await listProducts()) as ProductRow[];
+    return rows.map(mapProduct);
+  },
   staleTime: 30_000,
 });
 

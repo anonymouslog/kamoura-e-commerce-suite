@@ -1,13 +1,14 @@
-@import "tailwindcss" source(none);
-@source "../src";
+@import "tailwindcss";
 @import "tw-animate-css";
+@source "../src";
 
 @custom-variant dark (&:is(.dark *));
 
 /*
  * KAMOURA design system — quiet luxury.
- * Single near-black theme. All colours are oklch tokens; never hardcode colours
- * in components. Radii stay sharp (2–4px), borders are hairline at low opacity.
+ * Light-first with a dark mode override. All colours are oklch tokens; never
+ * hardcode colours in components. Radii stay sharp (2–4px), borders are hairline
+ * at low opacity.
  */
 
 @theme inline {
@@ -19,9 +20,9 @@
   --radius-3xl: 10px;
   --radius-4xl: 12px;
 
-  --font-display: "Cormorant Garamond", ui-serif, Georgia, serif;
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-mono: "Inter", ui-sans-serif, system-ui, sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -57,30 +58,55 @@
 :root {
   --radius: 3px;
 
-  /* #050505 */
-  --background: oklch(0.145 0 0);
-  /* #0b0b0a */
-  --bg-soft: oklch(0.18 0.002 90);
-  /* #f3efe6 */
-  --foreground: oklch(0.951 0.011 85);
+  /* A restrained neutral white, not a bright cream. */
+  --background: oklch(0.978 0.002 95);
+  --bg-soft: oklch(0.955 0.003 95);
+  /* #171717 */
+  --foreground: oklch(0.2 0.003 90);
   /* #c9a05c */
   --gold: oklch(0.723 0.083 78.5);
   /* #8a713f */
   --gold-soft: oklch(0.535 0.062 79);
-  /* #f3efe6 */
-  --ivory: oklch(0.951 0.011 85);
-  /* #8c8c86 */
-  --grey: oklch(0.615 0.004 100);
+  /* #171717 */
+  --ivory: oklch(0.2 0.003 90);
   /* #55554f */
-  --grey-dim: oklch(0.41 0.005 100);
-  /* #c4c7cc */
-  --silver: oklch(0.822 0.007 260);
+  --grey: oklch(0.47 0.004 100);
+  /* #70706a */
+  --grey-dim: oklch(0.58 0.004 100);
+  /* #4a4a4a */
+  --silver: oklch(0.36 0.004 260);
 
+  --card: oklch(1 0 0);
+  --card-foreground: var(--ivory);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--ivory);
+  --primary: var(--gold);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.945 0.003 95);
+  --secondary-foreground: var(--ivory);
+  --muted: oklch(0.965 0.002 95);
+  --muted-foreground: var(--grey);
+  --accent: oklch(0.93 0.003 95);
+  --accent-foreground: var(--ivory);
+  --destructive: oklch(0.55 0.17 25);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.2 0.003 90 / 0.12);
+  --input: oklch(0.2 0.003 90 / 0.16);
+  --ring: var(--gold);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --bg-soft: oklch(0.18 0.002 90);
+  --foreground: oklch(0.951 0.011 85);
+  --ivory: oklch(0.951 0.011 85);
+  --grey: oklch(0.615 0.004 100);
+  --grey-dim: oklch(0.41 0.005 100);
+  --silver: oklch(0.822 0.007 260);
   --card: oklch(0.18 0.002 90);
   --card-foreground: var(--ivory);
   --popover: oklch(0.2 0.002 90);
   --popover-foreground: var(--ivory);
-  --primary: var(--gold);
   --primary-foreground: oklch(0.145 0 0);
   --secondary: oklch(0.24 0.003 90);
   --secondary-foreground: var(--ivory);
@@ -88,14 +114,8 @@
   --muted-foreground: var(--grey);
   --accent: oklch(0.26 0.008 80);
   --accent-foreground: var(--ivory);
-  --destructive: oklch(0.55 0.17 25);
-  --destructive-foreground: var(--ivory);
   --border: oklch(0.951 0.011 85 / 0.12);
   --input: oklch(0.951 0.011 85 / 0.18);
-  --ring: var(--gold);
-}
-
-.dark {
   color-scheme: dark;
 }
 
@@ -105,7 +125,7 @@
   }
 
   html {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
@@ -117,8 +137,8 @@
 
   h1, h2, h3, h4, .font-display {
     font-family: var(--font-display);
-    font-weight: 300;
-    letter-spacing: -0.01em;
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
 
   :focus-visible {

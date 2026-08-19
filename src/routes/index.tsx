@@ -7,6 +7,7 @@ import { ProductCard } from "@/components/site/ProductCard";
 import { categories } from "@/lib/catalog";
 import { productsQuery } from "@/lib/catalog-queries";
 import { supabase } from "@/integrations/supabase/client";
+import { siteCopyQuery } from "@/lib/site-copy-queries";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -24,14 +25,22 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(productsQuery),
+  loader: async ({ context }) => {
+    await Promise.all([
+      context.queryClient.ensureQueryData(productsQuery),
+      context.queryClient.ensureQueryData(siteCopyQuery),
+    ]);
+  },
   component: Home,
 });
 
 function Home() {
   const [email, setEmail] = useState("");
   const { data: products } = useSuspenseQuery(productsQuery);
+  const { data: copy } = useSuspenseQuery(siteCopyQuery);
   const collection = products.filter((p) => p.featured).slice(0, 4);
+  const heroParts = copy.heroTitle.split("quiet");
+  const newsletterParts = copy.newsletterTitle.split("cut");
 
   return (
     <>
@@ -42,7 +51,7 @@ function Home() {
           alt="Kamoura campaign — ivory wool coat in low light"
           width={1920}
           height={1088}
-          className="h-[78vh] min-h-[420px] w-full object-cover object-[70%_center]"
+          className="h-[78vh] min-h-[420px] w-full object-cover object-[70%_top]"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-background via-background/70 to-transparent" />
         <div className="absolute inset-0 flex items-center">
@@ -50,11 +59,18 @@ function Home() {
             <div className="max-w-xl">
               <p className="eyebrow">Autumn — Winter</p>
               <h1 className="mt-5 font-display text-4xl leading-[1.05] text-ivory sm:text-6xl">
-                Clothes that keep <em className="italic text-gold">quiet</em> company.
+                {heroParts.length > 1 ? (
+                  <>
+                    {heroParts[0]}
+                    <em className="italic text-gold">quiet</em>
+                    {heroParts.slice(1).join("quiet")}
+                  </>
+                ) : (
+                  copy.heroTitle
+                )}
               </h1>
               <p className="mt-6 max-w-md text-sm leading-relaxed text-silver">
-                Twelve pieces, cut in wool, silk and cashmere. Made in small runs so nothing
-                arrives twice.
+                {copy.heroSubtitle}
               </p>
               <div className="mt-9 flex flex-wrap gap-3">
                 <Link
@@ -79,7 +95,7 @@ function Home() {
         <div className="flex items-end justify-between gap-6">
           <div>
             <p className="eyebrow">Featured</p>
-            <h2 className="mt-3 font-display text-3xl text-ivory">The considered four</h2>
+            <h2 className="mt-3 font-display text-3xl text-ivory">{copy.featuredTitle}</h2>
           </div>
           <Link
             to="/shop"
@@ -114,11 +130,17 @@ function Home() {
       <section className="mx-auto max-w-2xl px-5 py-24 text-center sm:px-8">
         <div className="rule-gold mx-auto w-24" />
         <h2 className="mt-8 font-display text-3xl text-ivory">
-          Hear first when a run is <em className="italic text-gold">cut</em>
+          {newsletterParts.length > 1 ? (
+            <>
+              {newsletterParts[0]}
+              <em className="italic text-gold">cut</em>
+              {newsletterParts.slice(1).join("cut")}
+            </>
+          ) : (
+            copy.newsletterTitle
+          )}
         </h2>
-        <p className="mt-4 text-sm text-grey">
-          One letter a season. No offers, no countdowns — just what has been made.
-        </p>
+        <p className="mt-4 text-sm text-grey">{copy.newsletterText}</p>
         <form
           className="mt-8 flex flex-col gap-3 sm:flex-row"
           onSubmit={async (e) => {

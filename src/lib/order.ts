@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { BagItem } from "./cart";
 import { formatPrice, storeConfig } from "./store-config";
 
 /** Shared between the checkout form and the order-message builder. */
@@ -22,12 +21,6 @@ export const orderSchema = z.object({
 
 export type OrderDetails = z.infer<typeof orderSchema>;
 
-export function orderReference(date = new Date()): string {
-  const stamp = date.toISOString().slice(2, 10).replace(/-/g, "");
-  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `KMR-${stamp}-${rand}`;
-}
-
 export function shippingCost(method: OrderDetails["shippingMethod"]): number {
   return storeConfig.shipping.find((s) => s.id === method)?.cost ?? 0;
 }
@@ -35,12 +28,13 @@ export function shippingCost(method: OrderDetails["shippingMethod"]): number {
 export function buildOrderMessage(args: {
   reference: string;
   details: OrderDetails;
-  items: BagItem[];
+  items: Array<{ name: string; size: string; color: string; quantity: number; price: number }>;
   subtotal: number;
+  shipping: number;
+  total: number;
 }): string {
-  const { reference, details, items, subtotal } = args;
+  const { reference, details, items, subtotal, shipping, total } = args;
   const ship = storeConfig.shipping.find((s) => s.id === details.shippingMethod);
-  const total = subtotal + (ship?.cost ?? 0);
 
   const lines = [
     `KAMOURA — new order ${reference}`,
@@ -52,7 +46,7 @@ export function buildOrderMessage(args: {
     ),
     "",
     `Subtotal: ${formatPrice(subtotal)}`,
-    `Shipping (${ship?.label ?? "—"}): ${formatPrice(ship?.cost ?? 0)}`,
+    `Shipping (${ship?.label ?? "—"}): ${formatPrice(shipping)}`,
     `Total: ${formatPrice(total)}`,
     "",
     "Customer",

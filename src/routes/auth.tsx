@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
+import { getMyAccount } from "@/lib/account.functions";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -17,6 +17,7 @@ export const Route = createFileRoute("/auth")({
       { property: "og:description", content: "Account access for Kamoura clients." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: AuthPage,
@@ -31,8 +32,15 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => {
-      if (data.session) void navigate({ to: "/account", replace: true });
+    void supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) return;
+      const account = await getMyAccount();
+      if (account.roles.includes("admin")) {
+        await supabase.auth.signOut();
+        toast.error("Admin access is available only from /admin.");
+        return;
+      }
+      void navigate({ to: "/account", replace: true });
     });
   }, [navigate]);
 
@@ -55,6 +63,11 @@ function AuthPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        const account = await getMyAccount();
+        if (account.roles.includes("admin")) {
+          await supabase.auth.signOut();
+          throw new Error("Use /admin to sign in with this account.");
+        }
         void navigate({ to: "/account" });
       }
     } catch (err) {
@@ -65,10 +78,15 @@ function AuthPage() {
   };
 
   const google = async () => {
-    const res = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        // Return here so a completed OAuth session receives the same role check
+        // as password sign-in before it can enter an account area.
+        redirectTo: `${window.location.origin}/auth`,
+      },
     });
-    if (res.error) toast.error(res.error.message);
+    if (error) toast.error(error.message);
   };
 
   return (

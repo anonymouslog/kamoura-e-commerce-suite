@@ -3,17 +3,15 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ProductCard } from "@/components/site/ProductCard";
 import { useCart } from "@/lib/cart";
-import { getProduct, related, type Product } from "@/lib/catalog";
+import { type Product } from "@/lib/catalog";
 import { formatPrice } from "@/lib/store-config";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { productQuery, productsQuery } from "@/lib/catalog-queries";
 
 export const Route = createFileRoute("/product/$slug")({
-  loader: ({ params }) => {
-    const product = getProduct(params.slug);
-    if (!product) throw notFound();
-    return { product };
-  },
+  loader: ({ params, context }) => context.queryClient.ensureQueryData(productQuery(params.slug)),
   head: ({ loaderData }) => {
-    const p = loaderData?.product;
+    const p = loaderData as Product | null;
     if (!p) return {};
     return {
       meta: [
@@ -48,12 +46,15 @@ export const Route = createFileRoute("/product/$slug")({
 });
 
 function ProductPage() {
-  const { product } = Route.useLoaderData() as { product: Product };
+  const product = Route.useLoaderData() as Product;
   const { add } = useCart();
   const [size, setSize] = useState<string | null>(null);
   const [color, setColor] = useState(product.colors[0]!);
   const soldOut = product.stock === 0;
-  const suggestions = related(product.slug, product.category);
+  const { data: products } = useSuspenseQuery(productsQuery);
+  const suggestions = products
+    .filter((p) => p.category === product.category && p.slug !== product.slug)
+    .slice(0, 6);
 
   return (
     <div className="mx-auto max-w-[1400px] px-5 py-12 sm:px-8">

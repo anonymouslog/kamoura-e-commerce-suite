@@ -19,6 +19,7 @@ export const Route = createFileRoute("/checkout/success")({
       },
       { property: "og:title", content: "Order placed — Kamoura" },
       { property: "og:description", content: "Your order is with the studio." },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: Success,
