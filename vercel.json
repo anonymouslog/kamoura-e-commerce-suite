@@ -1,4 +1,11 @@
 {
   "version": 2,
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/render" }]
+  "rewrites": [
+    { "source": "/assets/(.*)", "destination": "/assets/$1" },
+    { "source": "/_next/(.*)", "destination": "/_next/$1" },
+    { "source": "/static/(.*)", "destination": "/static/$1" },
+    { "source": "/favicon.ico", "destination": "/favicon.ico" },
+    { "source": "/robots.txt", "destination": "/robots.txt" },
+    { "source": "/(.*)", "destination": "/api/render" }
+  ]
 }
