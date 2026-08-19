@@ -1,11 +1,9 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "rewrites": [
-    { "source": "/assets/(.*)", "destination": "/assets/$1" },
-    { "source": "/_next/(.*)", "destination": "/_next/$1" },
-    { "source": "/static/(.*)", "destination": "/static/$1" },
-    { "source": "/favicon.ico", "destination": "/favicon.ico" },
-    { "source": "/robots.txt", "destination": "/robots.txt" },
-    { "source": "/(.*)", "destination": "/api/render" }
-  ]
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "outputDirectory": "dist/client",
+  "routes": [{ "handle": "filesystem" }, { "src": "/(.*)", "dest": "/api/render" }]
 }
