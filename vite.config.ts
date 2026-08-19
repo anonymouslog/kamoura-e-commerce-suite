@@ -11,4 +11,10 @@ export default defineConfig({
     tsconfigPaths: true,
   },
   plugins: [tailwindcss(), tanstackStart(), react()],
+  build: {
+    // Increase the chunk size warning limit to reduce noisy warnings for
+    // large single-page applications. For a real optimization, consider
+    // using `rollupOptions.output.manualChunks` to split heavy modules.
+    chunkSizeWarningLimit: 800,
+  },
 });
