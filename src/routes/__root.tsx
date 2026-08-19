@@ -8,7 +8,6 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { getRequest } from "@tanstack/react-start/server";
 import type { ReactNode } from "react";
 
 import hero from "@/assets/hero.jpg";
@@ -122,53 +121,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  // Determine theme on the server from a cookie if available so SSR matches
-  // the client. If no cookie is present, the server will fall back to no
-  // explicit class (client will apply system preference) — to avoid
-  // mismatches for returning users, we prefer cookie-driven rendering.
-  let serverTheme: "light" | "dark" | null = null;
-  try {
-    if (typeof window === "undefined") {
-      const req = getRequest();
-      const cookie = req?.headers.get("cookie") ?? "";
-      const match = cookie.match(/(?:^|; )kamoura-theme=(dark|light)(?:;|$)/);
-      if (match) serverTheme = match[1] as "light" | "dark";
-    }
-  } catch (e) {
-    // ignore — fallback to client-side handling
-  }
-
-  const htmlProps: any = { lang: "en" };
-  if (serverTheme === "dark") {
-    htmlProps.className = "dark";
-    htmlProps.style = { colorScheme: "dark" };
-  } else if (serverTheme === "light") {
-    // explicit light theme can set color-scheme for consistency
-    htmlProps.style = { colorScheme: "light" };
-  }
-
   return (
-    // Render html with server-side theme when available to prevent
-    // hydration mismatches. The inline script below will still set the
-    // theme early on the client if no cookie exists.
-    // eslint-disable-next-line jsx-a11y/html-has-lang
-    <html {...htmlProps}>
+    <html lang="en">
       <head>
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function () {
                 try {
-                  // Prefer cookie (set by ThemeToggle) so server and client
-                  // agree. Fall back to localStorage then prefers-color-scheme.
-                  function readCookie(name) {
-                    var m = document.cookie.match('(?:^|; )' + name + '=([^;]*)');
-                    return m ? decodeURIComponent(m[1]) : null;
-                  }
                   var key = "kamoura-theme";
-                  var theme = readCookie(key) || (localStorage && localStorage.getItem && localStorage.getItem(key));
+                  var theme = localStorage.getItem(key);
                   if (!theme) {
-                    theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+                    theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+                      ? "dark"
+                      : "light";
                   }
                   document.documentElement.classList.toggle("dark", theme === "dark");
                   document.documentElement.style.colorScheme = theme;
