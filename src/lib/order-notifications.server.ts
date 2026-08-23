@@ -37,6 +37,21 @@ type DeliveryResult = {
   errorMessage?: string;
 };
 
+export function resolveOrderNotificationEmailConfig(
+  env: Partial<
+    Record<"ORDER_FROM_EMAIL" | "ORDER_NOTIFICATION_EMAIL" | "VITE_ORDER_EMAIL", string>
+  > = process.env,
+): { from: string | null; to: string | null } {
+  const explicitFrom = env.ORDER_FROM_EMAIL?.trim();
+  const explicitTo = env.ORDER_NOTIFICATION_EMAIL?.trim();
+  const publicEmail = env.VITE_ORDER_EMAIL?.trim();
+
+  const from = explicitFrom ?? publicEmail ?? explicitTo ?? null;
+  const to = explicitTo ?? publicEmail ?? from ?? null;
+
+  return { from, to };
+}
+
 function orderText(order: OrderNotificationPayload): string {
   const lines = order.items.map(
     (item) =>
@@ -58,8 +73,7 @@ function orderText(order: OrderNotificationPayload): string {
 
 async function sendResend(order: OrderNotificationPayload): Promise<DeliveryResult> {
   const apiKey = process.env["RESEND_API_KEY"];
-  const from = process.env["ORDER_FROM_EMAIL"];
-  const to = process.env["ORDER_NOTIFICATION_EMAIL"];
+  const { from, to } = resolveOrderNotificationEmailConfig();
   if (!apiKey || !from || !to) return { provider: "resend", status: "skipped" };
 
   try {

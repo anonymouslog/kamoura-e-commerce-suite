@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mapProduct, type ProductRow } from "@/lib/catalog";
+import { buildCategoryDeleteErrorMessage } from "@/lib/admin.functions";
+import { dedupeGalleryImages, getCategory, mapProduct, type ProductRow } from "@/lib/catalog";
 
 describe("catalog module", () => {
   it("maps base_price to price and sets defaults correctly", () => {
@@ -30,5 +31,52 @@ describe("catalog module", () => {
     expect(product.colors).toEqual([]);
     expect(product.featured).toBe(true);
     expect(product.stock).toBe(5);
+  });
+
+  it("normalizes malformed or missing prices without producing NaN", () => {
+    const row: ProductRow = {
+      slug: "broken-price",
+      name: "Broken Price",
+      category_slug: "outerwear",
+      base_price: "not-a-number",
+      description: "A product",
+      details: ["detail"],
+      sizes: ["M"],
+      colors: ["Black"],
+      stock: 2,
+      image_key: null,
+      image_url: null,
+      is_featured: false,
+    };
+
+    const product = mapProduct(row);
+
+    expect(Number.isFinite(product.price)).toBe(true);
+    expect(product.price).toBe(0);
+  });
+
+  it("removes duplicate gallery entries while preserving order", () => {
+    expect(dedupeGalleryImages(["/a.jpg", "/a.jpg", "/b.jpg", "/b.jpg"])).toEqual([
+      "/a.jpg",
+      "/b.jpg",
+    ]);
+  });
+
+  it("accepts the legacy shirts alias and resolves it to the canonical shirting collection", () => {
+    const legacy = getCategory("shirts");
+    const canonical = getCategory("shirting");
+
+    expect(legacy).toEqual(canonical);
+    expect(legacy?.slug).toBe("shirting");
+    expect(legacy?.name).toBe("Shirting");
+  });
+
+  it("formats a clear category delete block message when products still reference the category", () => {
+    expect(buildCategoryDeleteErrorMessage(3)).toBe(
+      "This category has 3 products — reassign or delete them first.",
+    );
+    expect(buildCategoryDeleteErrorMessage(1)).toBe(
+      "This category has 1 product — reassign or delete it first.",
+    );
   });
 });

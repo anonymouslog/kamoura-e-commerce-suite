@@ -2,13 +2,14 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Instagram, Mail, MessageCircle, Music2 } from "lucide-react";
-import { categories } from "@/lib/catalog";
+import { categoriesQuery } from "@/lib/catalog-queries";
 import { Wordmark } from "./Wordmark";
 import { storeConfig } from "@/lib/store-config";
 import { siteCopyQuery } from "@/lib/site-copy-queries";
 
 export function Footer() {
   const { data: copy } = useSuspenseQuery(siteCopyQuery);
+  const { data: categories } = useSuspenseQuery(categoriesQuery);
 
   return (
     <footer className="mt-24 border-t border-border bg-bg-soft">

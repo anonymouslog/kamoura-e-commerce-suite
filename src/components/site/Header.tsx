@@ -1,11 +1,11 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCart } from "@/lib/cart";
-import { categories } from "@/lib/catalog";
+import { categoriesQuery } from "@/lib/catalog-queries";
 import { Wordmark } from "./Wordmark";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 
 import type { User } from "@supabase/supabase-js";
@@ -15,6 +15,7 @@ const linkClass =
 
 export function Header() {
   const { count } = useCart();
+  const { data: categories } = useSuspenseQuery(categoriesQuery);
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();

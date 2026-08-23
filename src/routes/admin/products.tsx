@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { ImagePlus, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -7,7 +7,7 @@ import {
   adminRemoveProductImage,
   adminUpsertProduct,
 } from "@/lib/admin.functions";
-import { adminProductsQuery } from "@/lib/admin-queries";
+import { adminCategoriesQuery, adminProductsQuery } from "@/lib/admin-queries";
 import { allColors, allSizes, categories } from "@/lib/catalog";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -50,7 +50,16 @@ const emptyForm = (): ProductFormState => ({
 });
 
 function Products() {
+  const queryClient = useQueryClient();
   const { data: products } = useSuspenseQuery(adminProductsQuery);
+  const { data: liveCategories } = useSuspenseQuery(adminCategoriesQuery);
+  const categoryOptions = useMemo(
+    () =>
+      liveCategories.length
+        ? liveCategories.map((category) => ({ value: category.slug, label: category.name }))
+        : categories.map((category) => ({ value: category.slug, label: category.name })),
+    [liveCategories],
+  );
   const [editingSlug, setEditingSlug] = useState("");
   const [form, setForm] = useState<ProductFormState>(emptyForm());
   const [saving, setSaving] = useState(false);
@@ -67,7 +76,11 @@ function Products() {
     setForm({
       slug: editingProduct.slug,
       name: editingProduct.name ?? "",
-      category_slug: editingProduct.category_slug ?? categories[0]?.slug ?? "outerwear",
+      category_slug:
+        editingProduct.category_slug ??
+        categoryOptions[0]?.value ??
+        categories[0]?.slug ??
+        "outerwear",
       price: String(Number(editingProduct.price ?? 0)),
       description: editingProduct.description ?? "",
       details: (editingProduct.details ?? []).join("\n"),
@@ -83,7 +96,10 @@ function Products() {
 
   const resetForm = () => {
     setEditingSlug("");
-    setForm(emptyForm());
+    setForm({
+      ...emptyForm(),
+      category_slug: categoryOptions[0]?.value ?? categories[0]?.slug ?? "outerwear",
+    });
     setMessage(null);
     setError(null);
   };
@@ -158,8 +174,8 @@ function Products() {
             <p className="mt-1 text-sm text-grey">{products.length} catalog entries</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-left text-sm">
-              <thead className="border-b border-border bg-bg-soft text-xs uppercase tracking-[0.12em] text-grey">
+            <table className="table-scroll w-full text-left text-sm">
+              <thead className="panel-kicker border-b border-border bg-bg-soft text-xs text-grey">
                 <tr>
                   <th className="px-5 py-3 font-medium">Product</th>
                   <th className="px-4 py-3 font-medium">Collection</th>
@@ -207,7 +223,11 @@ function Products() {
                             if (!confirm(`Delete ${product.name} and its uploaded image?`)) return;
                             try {
                               await adminDeleteProduct({ data: { slug: product.slug } });
-                              location.reload();
+                              await queryClient.invalidateQueries({
+                                queryKey: ["admin", "products"],
+                              });
+                              setMessage(`Deleted ${product.name}.`);
+                              resetForm();
                             } catch (caught) {
                               setError(
                                 caught instanceof Error
@@ -287,7 +307,8 @@ function Products() {
                     ? "Product saved, but the previous image could not be cleared. Try removing it again."
                     : "Product saved.",
                 );
-                setTimeout(() => location.reload(), 500);
+                await queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
+                resetForm();
               } catch (caught) {
                 setError(caught instanceof Error ? caught.message : "Product could not be saved.");
               } finally {
@@ -319,10 +340,7 @@ function Products() {
               <Select
                 label="Collection"
                 value={form.category_slug}
-                options={categories.map((category) => ({
-                  value: category.slug,
-                  label: category.name,
-                }))}
+                options={categoryOptions}
                 onChange={(value) => setForm((current) => ({ ...current, category_slug: value }))}
               />
               <Select

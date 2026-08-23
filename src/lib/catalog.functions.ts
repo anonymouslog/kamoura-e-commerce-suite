@@ -2,10 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
+import { defaultCategories } from "@/lib/catalog";
 import { defaultProducts, readLocalProducts } from "@/lib/cms-store";
 
 const SELECT =
-  "id,slug,name,category_slug,price:base_price,description,details,status,featured:is_featured,stock,image_key,image_url,created_at,updated_at";
+  "id,slug,name,category_slug,price:base_price,description,details,sizes,colors,status,featured:is_featured,stock,image_key,image_url,created_at,updated_at";
 
 function hasSupabaseConfig() {
   return Boolean(process.env["SUPABASE_URL"] && process.env["SUPABASE_PUBLISHABLE_KEY"]);
@@ -35,6 +36,43 @@ function publicClient() {
     },
   });
 }
+
+export const listCategories = createServerFn({ method: "GET" }).handler(async () => {
+  if (!hasSupabaseConfig()) {
+    return defaultCategories.map((category) => ({
+      slug: category.slug,
+      name: category.name,
+      blurb: category.blurb,
+      sort_order: null,
+    }));
+  }
+
+  try {
+    const { data, error } = await publicClient()
+      .from("categories")
+      .select("slug,name,blurb,sort_order")
+      .order("sort_order", { ascending: true, nullsFirst: true })
+      .order("name", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (
+      data ??
+      defaultCategories.map((category) => ({
+        slug: category.slug,
+        name: category.name,
+        blurb: category.blurb,
+        sort_order: null,
+      }))
+    );
+  } catch (error) {
+    console.warn("Category query skipped while Supabase is not configured:", error);
+    return defaultCategories.map((category) => ({
+      slug: category.slug,
+      name: category.name,
+      blurb: category.blurb,
+      sort_order: null,
+    }));
+  }
+});
 
 export const listProducts = createServerFn({ method: "GET" }).handler(async () => {
   if (!hasSupabaseConfig()) {

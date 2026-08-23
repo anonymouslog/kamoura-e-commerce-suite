@@ -1,6 +1,12 @@
 import { queryOptions } from "@tanstack/react-query";
-import { getProductBySlug, listProducts } from "./catalog.functions";
-import { mapProduct, type ProductRow } from "./catalog";
+import { getProductBySlug, listCategories, listProducts } from "./catalog.functions";
+import { mapProduct, type CategoryRow, type ProductRow } from "./catalog";
+
+export const categoriesQuery = queryOptions({
+  queryKey: ["categories"],
+  queryFn: async () => (await listCategories()) as CategoryRow[],
+  staleTime: 30_000,
+});
 
 export const productsQuery = queryOptions({
   queryKey: ["products"],

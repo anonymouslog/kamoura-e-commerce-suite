@@ -44,6 +44,8 @@ export const storeConfig = {
 
 export type ShippingMethodId = (typeof storeConfig.shipping)[number]["id"];
 
-export function formatPrice(amount: number): string {
-  return `${storeConfig.currency.symbol}${amount.toLocaleString("en-NG")}`;
+export function formatPrice(amount: number | string | null | undefined): string {
+  const safeAmount = Number(amount ?? 0);
+  const normalized = Number.isFinite(safeAmount) ? safeAmount : 0;
+  return `${storeConfig.currency.symbol}${normalized.toLocaleString("en-NG")}`;
 }

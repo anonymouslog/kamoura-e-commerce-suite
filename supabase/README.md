@@ -54,4 +54,5 @@ product record, and removes an old object after an image replacement.
 - The public catalog is readable without auth.
 - Admin writes are protected by the `user_roles` table and RLS.
 - Orders, order items, and addresses are scoped to the signed-in user or admin role.
+- In the Supabase Dashboard, enable "Leak password protection" in Authentication > Providers > Email/Password (or the equivalent current setting name) for the production project. This is a dashboard setting, not a SQL migration, and some plans may require a paid tier.
 - If you need to reset a broken database, create a new Supabase project instead of turning the schema file into a destructive reset.

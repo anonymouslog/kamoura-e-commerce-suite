@@ -19,7 +19,7 @@ export function ProductCard({ product }: { product: Product }) {
           width={900}
           height={1200}
           loading="lazy"
-          className="aspect-[3/4] w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+          className="image-portrait w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
         />
         {soldOut && (
           <span className="absolute left-3 top-3 border border-border bg-background/80 px-2 py-1 text-[0.6rem] uppercase tracking-[0.2em] text-grey">

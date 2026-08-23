@@ -1,5 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
-import { adminListProducts, adminListOrders, adminListNewsletter } from "./admin.functions";
+import {
+  adminListCategories,
+  adminListNewsletter,
+  adminListOrders,
+  adminListProducts,
+} from "./admin.functions";
 import type { ProductRow } from "./catalog";
 
 export type OrderStatusType =
@@ -45,6 +50,19 @@ export type NewsletterSignupRow = {
   email: string;
   created_at: string;
 };
+
+export type AdminCategoryRow = {
+  slug: string;
+  name: string;
+  blurb: string | null;
+  sort_order: number | null;
+};
+
+export const adminCategoriesQuery = queryOptions({
+  queryKey: ["admin", "categories"],
+  queryFn: async () => (await adminListCategories()) as unknown as AdminCategoryRow[],
+  staleTime: 30_000,
+});
 
 export const adminProductsQuery = queryOptions({
   queryKey: ["admin", "products"],

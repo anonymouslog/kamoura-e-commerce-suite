@@ -8,7 +8,7 @@ export const Route = createFileRoute("/shop/$category")({
   loader: ({ params }) => {
     const category = getCategory(params.category);
     if (!category) throw notFound();
-    return { category };
+    return { category, categorySlug: category.slug };
   },
   head: ({ loaderData }) => {
     const name = loaderData?.category.name ?? "Collection";
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/shop/$category")({
 });
 
 function CategoryPage() {
-  const { category } = Route.useLoaderData();
+  const { category, categorySlug } = Route.useLoaderData();
   const { data: products } = useSuspenseQuery(productsQuery);
 
   return (
@@ -42,7 +42,7 @@ function CategoryPage() {
       </nav>
       <h1 className="mt-5 font-display text-4xl text-ivory sm:text-5xl">{category.name}</h1>
       <p className="mt-4 max-w-lg text-sm text-grey">{category.blurb}</p>
-      <Catalog products={products} category={category.slug as CategorySlug} />
+      <Catalog products={products} category={categorySlug as CategorySlug} />
     </div>
   );
 }

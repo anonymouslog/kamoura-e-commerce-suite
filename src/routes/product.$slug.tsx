@@ -3,7 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ProductCard } from "@/components/site/ProductCard";
 import { useCart } from "@/lib/cart";
-import { type Product } from "@/lib/catalog";
+import { dedupeGalleryImages, type Product } from "@/lib/catalog";
 import { formatPrice } from "@/lib/store-config";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { productQuery, productsQuery } from "@/lib/catalog-queries";
@@ -48,13 +48,16 @@ export const Route = createFileRoute("/product/$slug")({
 function ProductPage() {
   const product = Route.useLoaderData() as Product;
   const { add } = useCart();
-  const [size, setSize] = useState<string | null>(null);
-  const [color, setColor] = useState(product.colors[0]!);
+  const [size, setSize] = useState<string | null>(product.sizes[0] ?? null);
+  const [color, setColor] = useState(product.colors[0] ?? "");
   const soldOut = product.stock === 0;
   const { data: products } = useSuspenseQuery(productsQuery);
   const suggestions = products
     .filter((p) => p.category === product.category && p.slug !== product.slug)
     .slice(0, 6);
+  const galleryImages = dedupeGalleryImages([product.image, product.image]);
+  const hasSizeOptions = product.sizes.length > 0;
+  const hasColorOptions = product.colors.length > 0;
 
   return (
     <div className="mx-auto max-w-[1400px] px-5 py-12 sm:px-8">
@@ -74,21 +77,17 @@ function ProductPage() {
 
       <div className="mt-8 grid gap-12 lg:grid-cols-[1.15fr_1fr]">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-          <img
-            src={product.image}
-            alt={`${product.name} in ${color}`}
-            width={900}
-            height={1200}
-            className="aspect-[3/4] w-full border border-border object-cover"
-          />
-          <img
-            src={product.image}
-            alt={`${product.name} detail`}
-            width={900}
-            height={1200}
-            loading="lazy"
-            className="aspect-[3/4] w-full border border-border object-cover object-bottom"
-          />
+          {galleryImages.map((image, index) => (
+            <img
+              key={`${product.slug}-${image}-${index}`}
+              src={image}
+              alt={`${product.name}${index === 0 ? ` in ${color || "the studio"}` : " detail"}`}
+              width={900}
+              height={1200}
+              loading={index === 0 ? "eager" : "lazy"}
+              className="image-portrait w-full border border-border object-cover object-bottom"
+            />
+          ))}
         </div>
 
         <div className="lg:sticky lg:top-24 lg:h-fit">
@@ -96,48 +95,52 @@ function ProductPage() {
           <p className="numeral mt-3 text-lg text-gold">{formatPrice(product.price)}</p>
           <p className="mt-6 text-sm leading-relaxed text-grey">{product.description}</p>
 
-          <div className="mt-8">
-            <p className="eyebrow">Colour</p>
-            <div className="mt-3 flex gap-2">
-              {product.colors.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  aria-pressed={color === c}
-                  onClick={() => setColor(c)}
-                  className={`border px-4 py-2 text-xs tracking-[0.1em] transition-colors ${
-                    color === c
-                      ? "border-gold text-gold"
-                      : "border-border text-grey hover:border-gold-soft hover:text-ivory"
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
+          {hasColorOptions ? (
+            <div className="mt-8">
+              <p className="eyebrow">Colour</p>
+              <div className="mt-3 flex gap-2">
+                {product.colors.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    aria-pressed={color === c}
+                    onClick={() => setColor(c)}
+                    className={`border px-4 py-2 text-xs tracking-[0.1em] transition-colors ${
+                      color === c
+                        ? "border-gold text-gold"
+                        : "border-border text-grey hover:border-gold-soft hover:text-ivory"
+                    }`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          <div className="mt-6">
-            <p className="eyebrow">Size</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {product.sizes.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  aria-pressed={size === s}
-                  disabled={soldOut}
-                  onClick={() => setSize(s)}
-                  className={`min-w-12 border px-3 py-2 text-xs tracking-[0.1em] transition-colors disabled:opacity-40 ${
-                    size === s
-                      ? "border-gold bg-gold text-primary-foreground"
-                      : "border-border text-grey hover:border-gold-soft hover:text-ivory"
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
+          {hasSizeOptions ? (
+            <div className="mt-6">
+              <p className="eyebrow">Size</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {product.sizes.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    aria-pressed={size === s}
+                    disabled={soldOut}
+                    onClick={() => setSize(s)}
+                    className={`min-w-12 border px-3 py-2 text-xs tracking-[0.1em] transition-colors disabled:opacity-40 ${
+                      size === s
+                        ? "border-gold bg-gold text-primary-foreground"
+                        : "border-border text-grey hover:border-gold-soft hover:text-ivory"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <p className="mt-5 text-xs uppercase tracking-[0.18em] text-grey-dim">
             {soldOut
@@ -151,19 +154,25 @@ function ProductPage() {
             type="button"
             disabled={soldOut}
             onClick={() => {
-              if (!size) {
+              if (hasSizeOptions && !size) {
                 toast.error("Choose a size first.");
+                return;
+              }
+              if (hasColorOptions && !color) {
+                toast.error("Choose a colour first.");
                 return;
               }
               add({
                 slug: product.slug,
                 name: product.name,
-                size,
-                color,
+                size: size ?? "One size",
+                color: color || "Default",
                 price: product.price,
                 image: product.image,
               });
-              toast.success(`${product.name} — ${size} added to your bag.`);
+              toast.success(
+                `${product.name} — ${size ?? "One size"}${hasColorOptions ? ` / ${color}` : ""} added to your bag.`,
+              );
             }}
             className="mt-8 w-full border border-gold bg-gold px-7 py-4 text-xs uppercase tracking-[0.2em] text-primary-foreground transition-colors hover:bg-gold-soft hover:text-ivory disabled:cursor-not-allowed disabled:border-border disabled:bg-transparent disabled:text-grey-dim"
           >

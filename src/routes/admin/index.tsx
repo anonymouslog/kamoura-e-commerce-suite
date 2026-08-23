@@ -64,8 +64,8 @@ function AdminIndex() {
             </Link>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px] text-left text-sm">
-              <thead className="border-b border-border bg-bg-soft text-xs uppercase tracking-[0.12em] text-grey">
+            <table className="table-scroll w-full text-left text-sm">
+              <thead className="panel-kicker border-b border-border bg-bg-soft text-xs text-grey">
                 <tr>
                   <th className="px-5 py-3 font-medium">Order</th>
                   <th className="px-4 py-3 font-medium">Customer</th>
@@ -162,7 +162,7 @@ function Metric({
   icon: typeof Package;
 }) {
   return (
-    <div className="border-b border-border p-5 last:border-b-0 sm:[&:nth-child(odd)]:border-r xl:border-b-0 xl:[&:not(:last-child)]:border-r">
+    <div className="border-b border-border p-5 last:border-b-0 sm:[&:nth-of-type(odd)]:border-r xl:border-b-0 xl:[&:not(:last-child)]:border-r">
       <div className="flex items-center justify-between">
         <p className="text-xs uppercase tracking-[0.12em] text-grey">{label}</p>
         <Icon className="size-4 text-grey-dim" />

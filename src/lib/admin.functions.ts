@@ -34,7 +34,6 @@ const productInput = z.object({
   is_featured: z.boolean(),
 });
 
-const categorySlugs = new Set(categories.map((category) => category.slug));
 const productImageBucket = "product-images";
 const imageKeyInput = z
   .string()
@@ -52,6 +51,80 @@ export async function assertAdmin(supabase: any, userId: string) {
     .eq("role", "admin");
   if (!data?.length) throw new Error("Admins only.");
 }
+
+export const adminListCategories = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.supabase as never, context.userId);
+    const { data, error } = await context.supabase
+      .from("categories")
+      .select("slug,name,blurb,sort_order")
+      .order("sort_order", { ascending: true, nullsFirst: true })
+      .order("name", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const adminUpsertCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) =>
+    z
+      .object({
+        slug: z
+          .string()
+          .trim()
+          .min(2)
+          .max(60)
+          .regex(/^[a-z0-9-]+$/, "Use lowercase letters, numbers, and dashes."),
+        name: z.string().trim().min(2).max(80),
+        blurb: z.string().trim().max(240).default(""),
+        sort_order: z.number().int().min(0).max(999).default(0),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.supabase as never, context.userId);
+    const { error } = await context.supabase.from("categories").upsert(
+      {
+        slug: data.slug,
+        name: data.name,
+        blurb: data.blurb,
+        sort_order: data.sort_order,
+      },
+      { onConflict: "slug" },
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export function buildCategoryDeleteErrorMessage(productCount: number) {
+  if (productCount === 1) {
+    return "This category has 1 product — reassign or delete it first.";
+  }
+
+  return `This category has ${productCount} products — reassign or delete them first.`;
+}
+
+export const adminDeleteCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => z.object({ slug: z.string().trim().min(2).max(60) }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.supabase as never, context.userId);
+
+    const { data: productRows, error: productError } = await context.supabase
+      .from("products")
+      .select("slug")
+      .eq("category_slug", data.slug);
+
+    if (productError) throw new Error(productError.message);
+    if (productRows?.length) {
+      throw new Error(buildCategoryDeleteErrorMessage(productRows.length));
+    }
+
+    const { error } = await context.supabase.from("categories").delete().eq("slug", data.slug);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
 
 export const adminListProducts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -72,7 +145,13 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
   .validator((input) => productInput.parse(input))
   .handler(async ({ context, data }) => {
     await assertAdmin(context.supabase as never, context.userId);
-    if (!categorySlugs.has(data.category_slug)) {
+    const { data: categoryRows, error: categoryError } = await context.supabase
+      .from("categories")
+      .select("slug")
+      .eq("slug", data.category_slug)
+      .maybeSingle();
+    if (categoryError) throw new Error(categoryError.message);
+    if (!categoryRows) {
       throw new Error("Unknown category.");
     }
     const { data: current, error: currentError } = await context.supabase

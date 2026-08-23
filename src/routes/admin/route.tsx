@@ -16,6 +16,7 @@ import {
   Shield,
   LogOut,
   Store,
+  Tags,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { accountQuery } from "@/lib/account-queries";
@@ -76,6 +77,7 @@ function AdminLayout() {
               title="Commerce"
               items={[
                 { to: "/admin/products", label: "Products", icon: Package },
+                { to: "/admin/categories", label: "Categories", icon: Tags },
                 { to: "/admin/orders", label: "Orders", icon: ShoppingBag },
               ]}
             />

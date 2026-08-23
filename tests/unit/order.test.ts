@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { resolveOrderNotificationEmailConfig } from "@/lib/order-notifications.server";
 import { buildOrderMessage, shippingCost, type OrderDetails } from "@/lib/order";
 
 describe("order module", () => {
@@ -43,5 +44,27 @@ describe("order module", () => {
     expect(message).toContain("Ada Lovelace");
     expect(message).toContain("12 Marina Road");
     expect(message).toContain("Note\nLeave at front desk");
+  });
+
+  it("resolves server-side notification emails with a clear fallback chain", () => {
+    expect(
+      resolveOrderNotificationEmailConfig({
+        ORDER_FROM_EMAIL: "orders@kamoura.com",
+        ORDER_NOTIFICATION_EMAIL: "studio@kamoura.com",
+        VITE_ORDER_EMAIL: "public@kamoura.com",
+      }),
+    ).toEqual({
+      from: "orders@kamoura.com",
+      to: "studio@kamoura.com",
+    });
+
+    expect(
+      resolveOrderNotificationEmailConfig({
+        VITE_ORDER_EMAIL: "public@kamoura.com",
+      }),
+    ).toEqual({
+      from: "public@kamoura.com",
+      to: "public@kamoura.com",
+    });
   });
 });

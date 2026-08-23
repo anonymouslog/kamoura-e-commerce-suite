@@ -4,8 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import hero from "@/assets/hero.jpg";
 import { ProductCard } from "@/components/site/ProductCard";
-import { categories } from "@/lib/catalog";
-import { productsQuery } from "@/lib/catalog-queries";
+import { categoriesQuery, productsQuery } from "@/lib/catalog-queries";
 import { supabase } from "@/integrations/supabase/client";
 import { siteCopyQuery } from "@/lib/site-copy-queries";
 
@@ -27,6 +26,7 @@ export const Route = createFileRoute("/")({
   }),
   loader: async ({ context }) => {
     await Promise.all([
+      context.queryClient.ensureQueryData(categoriesQuery),
       context.queryClient.ensureQueryData(productsQuery),
       context.queryClient.ensureQueryData(siteCopyQuery),
     ]);
@@ -36,6 +36,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const [email, setEmail] = useState("");
+  const { data: categories } = useSuspenseQuery(categoriesQuery);
   const { data: products } = useSuspenseQuery(productsQuery);
   const { data: copy } = useSuspenseQuery(siteCopyQuery);
   const collection = products.filter((p) => p.featured).slice(0, 4);
