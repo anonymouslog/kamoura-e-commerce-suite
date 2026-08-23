@@ -143,7 +143,8 @@ function Checkout() {
       if (order.notificationDelivered) {
         toast.success("Your order was sent to the Kamoura team.");
       } else {
-        const url = channel === "whatsapp" ? whatsappUrl(message) : mailtoUrl(order.reference, message);
+        const url =
+          channel === "whatsapp" ? whatsappUrl(message) : mailtoUrl(order.reference, message);
         window.open(url, "_blank", "noopener,noreferrer");
       }
       clear();

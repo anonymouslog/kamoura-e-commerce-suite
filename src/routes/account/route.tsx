@@ -4,10 +4,7 @@ import { accountQuery } from "@/lib/account-queries";
 
 export const Route = createFileRoute("/account")({
   head: () => ({
-    meta: [
-      { title: "Account — Kamoura" },
-      { name: "robots", content: "noindex, nofollow" },
-    ],
+    meta: [{ title: "Account — Kamoura" }, { name: "robots", content: "noindex, nofollow" }],
   }),
   beforeLoad: async ({ context, location }) => {
     try {
@@ -51,6 +48,29 @@ function AccountLayout() {
   );
 }
 
-function AccountNav({ to, label, icon: Icon }: { to: "/account" | "/account/orders" | "/account/addresses" | "/account/wishlist" | "/account/settings"; label: string; icon: typeof UserRound }) {
-  return <Link to={to} activeOptions={{ exact: true }} activeProps={{ className: "bg-bg-soft text-ivory" }} className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-grey transition-colors hover:bg-bg-soft hover:text-ivory"><Icon className="size-4" />{label}</Link>;
+function AccountNav({
+  to,
+  label,
+  icon: Icon,
+}: {
+  to:
+    | "/account"
+    | "/account/orders"
+    | "/account/addresses"
+    | "/account/wishlist"
+    | "/account/settings";
+  label: string;
+  icon: typeof UserRound;
+}) {
+  return (
+    <Link
+      to={to}
+      activeOptions={{ exact: true }}
+      activeProps={{ className: "bg-bg-soft text-ivory" }}
+      className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-grey transition-colors hover:bg-bg-soft hover:text-ivory"
+    >
+      <Icon className="size-4" />
+      {label}
+    </Link>
+  );
 }

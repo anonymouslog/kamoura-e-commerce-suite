@@ -44,9 +44,15 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ context, data }) => {
-    const { error } = await context.supabase
-      .from("profiles")
-      .upsert({ id: context.userId, ...data }, { onConflict: "id" });
+    const { error } = await context.supabase.from("profiles").upsert(
+      {
+        id: context.userId,
+        full_name: data.full_name ?? null,
+        phone: data.phone ?? null,
+        marketing_opt_in: data.marketing_opt_in ?? false,
+      },
+      { onConflict: "id" },
+    );
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -75,9 +81,19 @@ export const addMyAddress = createServerFn({ method: "POST" })
         .eq("is_default", true);
       if (clearError) throw new Error(clearError.message);
     }
-    const { error } = await context.supabase
-      .from("addresses")
-      .insert({ ...data, user_id: context.userId });
+    const { error } = await context.supabase.from("addresses").insert({
+      user_id: context.userId,
+      recipient_name: data.recipient_name,
+      line1: data.line1,
+      city: data.city,
+      state: data.state,
+      country: data.country,
+      label: data.label ?? null,
+      phone: data.phone ?? null,
+      line2: data.line2 ?? null,
+      postal_code: data.postal_code ?? null,
+      is_default: data.is_default ?? false,
+    });
     if (error) throw new Error(error.message);
     return { ok: true };
   });

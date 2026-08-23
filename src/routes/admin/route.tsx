@@ -1,5 +1,22 @@
-import { Link, Outlet, createFileRoute, isRedirect, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Package, ShoppingBag, Sparkles, Search, Shield, LogOut, Store } from "lucide-react";
+import {
+  Link,
+  Outlet,
+  createFileRoute,
+  isRedirect,
+  redirect,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router";
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingBag,
+  Sparkles,
+  Search,
+  Shield,
+  LogOut,
+  Store,
+} from "lucide-react";
 import type { ComponentType } from "react";
 import { accountQuery } from "@/lib/account-queries";
 import { ThemeToggle } from "@/components/site/ThemeToggle";
@@ -7,10 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
-    meta: [
-      { title: "Admin — Kamoura" },
-      { name: "robots", content: "noindex, nofollow" },
-    ],
+    meta: [{ title: "Admin — Kamoura" }, { name: "robots", content: "noindex, nofollow" }],
   }),
   beforeLoad: async ({ context, location }) => {
     if (location.pathname === "/admin/login") return;

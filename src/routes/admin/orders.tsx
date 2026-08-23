@@ -2,8 +2,14 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertCircle, Mail, PhoneCall, RefreshCw, Truck } from "lucide-react";
 import { useState } from "react";
-import { adminOrdersQuery } from "@/lib/admin-queries";
+import {
+  adminOrdersQuery,
+  type AdminOrderRow,
+  type AdminOrderItemRow,
+  type AdminOrderEventRow,
+} from "@/lib/admin-queries";
 import { adminUpdateOrderStatus } from "@/lib/admin.functions";
+import type { Enums } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/admin/orders")({
   loader: ({ context }) => context.queryClient.ensureQueryData(adminOrdersQuery),
@@ -14,8 +20,12 @@ function Orders() {
   const { data: orders } = useSuspenseQuery(adminOrdersQuery);
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  const awaiting = orders.filter((order) => order.status === "placed" || order.status === "confirmed");
-  const shipped = orders.filter((order) => order.status === "shipped" || order.status === "delivered");
+  const awaiting = orders.filter(
+    (order) => order.status === "placed" || order.status === "confirmed",
+  );
+  const shipped = orders.filter(
+    (order) => order.status === "shipped" || order.status === "delivered",
+  );
   const totalRevenue = orders.reduce((sum, order) => sum + Number(order.total ?? 0), 0);
 
   return (
@@ -45,7 +55,7 @@ function Orders() {
           </div>
         )}
 
-        {orders.map((order: any) => {
+        {orders.map((order: AdminOrderRow) => {
           const primaryEvent = order.order_events?.[0] ?? null;
 
           return (
@@ -72,7 +82,7 @@ function Orders() {
                       onChange={async (e) => {
                         setLoadingId(order.id);
                         await adminUpdateOrderStatus({
-                          data: { id: order.id, status: e.target.value as any },
+                          data: { id: order.id, status: e.target.value as Enums<"order_status"> },
                         });
                         setLoadingId(null);
                         location.reload();
@@ -102,7 +112,8 @@ function Orders() {
                       type="button"
                       className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-grey transition-colors hover:border-gold hover:text-ivory"
                       onClick={() => {
-                        if (order.contact_email) window.location.href = `mailto:${order.contact_email}`;
+                        if (order.contact_email)
+                          window.location.href = `mailto:${order.contact_email}`;
                       }}
                     >
                       <Mail className="size-4" />
@@ -141,16 +152,14 @@ function Orders() {
                   </div>
 
                   <div className="mt-6 space-y-3">
-                    {order.order_items?.map((item: any) => (
+                    {order.order_items?.map((item: AdminOrderItemRow) => (
                       <div
                         key={item.id}
                         className="rounded-2xl border border-border bg-bg-soft p-4"
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0">
-                            <p className="font-medium text-ivory">
-                              {item.product_name ?? item.name}
-                            </p>
+                            <p className="font-medium text-ivory">{item.product_name ?? ""}</p>
                             <p className="mt-1 text-sm text-grey">
                               {item.variant_label}
                               {item.product_slug ? ` · ${item.product_slug}` : ""}
@@ -159,7 +168,9 @@ function Orders() {
                           <div className="text-right">
                             <p className="text-sm text-grey">
                               x{item.quantity} · ₦
-                              {Number(item.unit_price_at_purchase ?? item.price ?? 0).toLocaleString("en-NG")}
+                              {Number(
+                                item.unit_price_at_purchase ?? item.price ?? 0,
+                              ).toLocaleString("en-NG")}
                             </p>
                             <p className="mt-1 text-sm font-medium text-ivory">
                               ₦
@@ -175,7 +186,10 @@ function Orders() {
                   </div>
 
                   <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                    <SummaryPill label="Subtotal" value={`₦${Number(order.subtotal).toLocaleString("en-NG")}`} />
+                    <SummaryPill
+                      label="Subtotal"
+                      value={`₦${Number(order.subtotal).toLocaleString("en-NG")}`}
+                    />
                     <SummaryPill
                       label="Shipping"
                       value={`₦${Number(order.shipping_cost).toLocaleString("en-NG")}`}
@@ -189,7 +203,9 @@ function Orders() {
                         <AlertCircle className="size-4 text-gold" />
                         Customer note
                       </div>
-                      <p className="mt-3 text-sm leading-relaxed text-grey">{order.customer_note}</p>
+                      <p className="mt-3 text-sm leading-relaxed text-grey">
+                        {order.customer_note}
+                      </p>
                     </div>
                   ) : null}
                 </section>
@@ -217,22 +233,36 @@ function Orders() {
                     </div>
 
                     <div className="mt-5 space-y-3">
-                      {(order.order_events?.length ? order.order_events : [{ status: order.status, note: "Order created", created_at: order.created_at }]).map(
-                        (event: any) => (
-                          <div key={`${event.status}-${event.created_at}`} className="flex gap-3 rounded-2xl border border-border bg-bg-soft p-4">
-                            <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-gold" />
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-medium text-ivory">{event.status}</p>
-                                <span className="text-xs text-grey-dim">
-                                  {event.created_at ? new Date(event.created_at).toLocaleString() : "Just now"}
-                                </span>
-                              </div>
-                              {event.note ? <p className="mt-1 text-sm text-grey">{event.note}</p> : null}
+                      {(order.order_events?.length
+                        ? order.order_events
+                        : [
+                            {
+                              status: order.status,
+                              note: "Order created",
+                              created_at: order.created_at,
+                            },
+                          ]
+                      ).map((event: AdminOrderEventRow) => (
+                        <div
+                          key={`${event.status}-${event.created_at}`}
+                          className="flex gap-3 rounded-2xl border border-border bg-bg-soft p-4"
+                        >
+                          <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-gold" />
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-sm font-medium text-ivory">{event.status}</p>
+                              <span className="text-xs text-grey-dim">
+                                {event.created_at
+                                  ? new Date(event.created_at).toLocaleString()
+                                  : "Just now"}
+                              </span>
                             </div>
+                            {event.note ? (
+                              <p className="mt-1 text-sm text-grey">{event.note}</p>
+                            ) : null}
                           </div>
-                        ),
-                      )}
+                        </div>
+                      ))}
                     </div>
                   </section>
                 </aside>
@@ -246,7 +276,10 @@ function Orders() {
         <FooterStat label="Awaiting action" value={`${awaiting.length}`} />
         <FooterStat label="Shipped / delivered" value={`${shipped.length}`} />
         <FooterStat label="Total revenue" value={`₦${totalRevenue.toLocaleString("en-NG")}`} />
-        <FooterStat label="Open tracking links" value={`${orders.filter((o) => o.tracking_url).length}`} />
+        <FooterStat
+          label="Open tracking links"
+          value={`${orders.filter((o) => o.tracking_url).length}`}
+        />
       </div>
     </div>
   );
@@ -254,7 +287,9 @@ function Orders() {
 
 function Metric({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
   return (
-    <div className={`rounded-2xl border border-border bg-bg-soft px-4 py-3 ${wide ? "sm:min-w-[14rem]" : ""}`}>
+    <div
+      className={`rounded-2xl border border-border bg-bg-soft px-4 py-3 ${wide ? "sm:min-w-[14rem]" : ""}`}
+    >
       <p className="text-[0.65rem] uppercase tracking-[0.18em] text-grey-dim">{label}</p>
       <p className="mt-1 text-sm font-semibold text-ivory">{value}</p>
     </div>
@@ -296,9 +331,16 @@ function FooterStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatAddress(address: any): string {
+function formatAddress(address: Record<string, string | null | undefined> | null): string {
   if (!address) return "No address saved";
-  const parts = [address.line1, address.line2, address.city, address.state, address.postal_code, address.country]
+  const parts = [
+    address["line1"],
+    address["line2"],
+    address["city"],
+    address["state"],
+    address["postal_code"],
+    address["country"],
+  ]
     .filter(Boolean)
     .map(String);
   return parts.length ? parts.join(", ") : "No address saved";

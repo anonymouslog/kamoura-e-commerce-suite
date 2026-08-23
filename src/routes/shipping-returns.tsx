@@ -21,12 +21,12 @@ function ShippingReturns() {
       <div className="mt-10 space-y-6 text-sm leading-relaxed text-grey">
         <p>
           Orders are confirmed manually before dispatch. Shipping method and cost are shown at
-          checkout. Once stock is confirmed, the studio sends the final order details by WhatsApp
-          or email.
+          checkout. Once stock is confirmed, the studio sends the final order details by WhatsApp or
+          email.
         </p>
         <p>
-          Delivery timing depends on the shipping method selected and the destination. If an item
-          is delayed, we contact you with an updated estimate.
+          Delivery timing depends on the shipping method selected and the destination. If an item is
+          delayed, we contact you with an updated estimate.
         </p>
         <p>
           Returns are handled case by case. For sizing issues or a damaged item, contact the studio
@@ -34,7 +34,10 @@ function ShippingReturns() {
         </p>
         <p>
           For all fulfilment questions, use the{" "}
-          <Link to="/contact" className="text-ivory underline decoration-gold/40 underline-offset-4">
+          <Link
+            to="/contact"
+            className="text-ivory underline decoration-gold/40 underline-offset-4"
+          >
             contact page
           </Link>
           .

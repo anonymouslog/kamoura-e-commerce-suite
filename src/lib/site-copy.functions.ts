@@ -46,6 +46,7 @@ const siteCopyInput = z.object({
 });
 
 export const getSiteCopy = createServerFn({ method: "GET" }).handler(async () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = publicServerClient() as any;
   const { data, error } = await supabase.from("site_copy").select("*").eq("id", 1).maybeSingle();
   if (error || !data) return defaultSiteCopy;
@@ -57,6 +58,7 @@ export const updateSiteCopy = createServerFn({ method: "POST" })
   .validator((input) => siteCopyInput.parse(input))
   .handler(async ({ context, data }) => {
     await assertAdmin(context.supabase as never, context.userId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = context.supabase as any;
     const { error } = await supabase.from("site_copy").upsert(
       {
@@ -78,6 +80,7 @@ export const updateSiteCopy = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapCopy(row: any): CmsSiteCopy {
   return {
     heroTitle: row.hero_title ?? defaultSiteCopy.heroTitle,

@@ -6,6 +6,15 @@ type OrderNotificationItem = {
   price: number;
 };
 
+export type ShippingAddress = {
+  line1: string | null | undefined;
+  line2?: string | null | undefined;
+  city: string | null | undefined;
+  state: string | null | undefined;
+  postal_code?: string | null | undefined;
+  country?: string | null | undefined;
+};
+
 export type OrderNotificationPayload = {
   id: string;
   reference: string;
@@ -14,7 +23,7 @@ export type OrderNotificationPayload = {
   contactPhone: string;
   contactEmail: string;
   shippingMethod: string;
-  shippingAddress: Record<string, string | null | undefined>;
+  shippingAddress: ShippingAddress;
   subtotal: number;
   shippingCost: number;
   total: number;
@@ -30,7 +39,8 @@ type DeliveryResult = {
 
 function orderText(order: OrderNotificationPayload): string {
   const lines = order.items.map(
-    (item) => `- ${item.name} (${item.size} / ${item.color}) x${item.quantity}: NGN ${item.price * item.quantity}`,
+    (item) =>
+      `- ${item.name} (${item.size} / ${item.color}) x${item.quantity}: NGN ${item.price * item.quantity}`,
   );
   return [
     `New Kamoura order ${order.reference}`,
@@ -65,11 +75,19 @@ async function sendResend(order: OrderNotificationPayload): Promise<DeliveryResu
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      return { provider: "resend", status: "failed", errorMessage: payload.message ?? "Email delivery failed." };
+      return {
+        provider: "resend",
+        status: "failed",
+        errorMessage: payload.message ?? "Email delivery failed.",
+      };
     }
     return { provider: "resend", status: "sent", providerMessageId: payload.id };
   } catch (error) {
-    return { provider: "resend", status: "failed", errorMessage: error instanceof Error ? error.message : "Email delivery failed." };
+    return {
+      provider: "resend",
+      status: "failed",
+      errorMessage: error instanceof Error ? error.message : "Email delivery failed.",
+    };
   }
 }
 
@@ -87,16 +105,28 @@ async function sendWebhook(order: OrderNotificationPayload): Promise<DeliveryRes
       },
       body: JSON.stringify(order),
     });
-    if (!response.ok) return { provider: "order-webhook", status: "failed", errorMessage: `Webhook returned ${response.status}.` };
+    if (!response.ok)
+      return {
+        provider: "order-webhook",
+        status: "failed",
+        errorMessage: `Webhook returned ${response.status}.`,
+      };
     return { provider: "order-webhook", status: "sent" };
   } catch (error) {
-    return { provider: "order-webhook", status: "failed", errorMessage: error instanceof Error ? error.message : "Webhook delivery failed." };
+    return {
+      provider: "order-webhook",
+      status: "failed",
+      errorMessage: error instanceof Error ? error.message : "Webhook delivery failed.",
+    };
   }
 }
 
-export async function notifyOrder(order: OrderNotificationPayload): Promise<{ delivered: boolean }> {
+export async function notifyOrder(
+  order: OrderNotificationPayload,
+): Promise<{ delivered: boolean }> {
   const deliveries = await Promise.all([sendResend(order), sendWebhook(order)]);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = supabaseAdmin as any;
 
   await admin.from("order_notifications").insert(

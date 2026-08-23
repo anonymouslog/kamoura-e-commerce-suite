@@ -25,8 +25,8 @@ function TermsPage() {
         </p>
         <p>
           Order availability is subject to stock confirmation. No payment is captured automatically
-          in this version of the store; final payment instructions are confirmed by the studio
-          after review.
+          in this version of the store; final payment instructions are confirmed by the studio after
+          review.
         </p>
         <p>
           Product images, descriptions, and availability may change without prior notice. We keep
@@ -39,7 +39,10 @@ function TermsPage() {
         </p>
         <p>
           Questions about these terms can be sent through the{" "}
-          <Link to="/contact" className="text-ivory underline decoration-gold/40 underline-offset-4">
+          <Link
+            to="/contact"
+            className="text-ivory underline decoration-gold/40 underline-offset-4"
+          >
             contact page
           </Link>
           .

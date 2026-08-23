@@ -28,6 +28,7 @@ export type ProductRow = {
   name: string;
   category_slug: string;
   base_price: number | string;
+  price?: number | string;
   description: string | null;
   details: string[] | null;
   sizes: string[] | null;

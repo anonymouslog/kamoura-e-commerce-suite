@@ -13,10 +13,7 @@ const sorts: { id: Sort; label: string }[] = [
 ];
 
 export function Catalog({ products, category }: { products: Product[]; category?: string }) {
-  const maxPrice = useMemo(
-    () => Math.max(500000, ...products.map((p) => p.price)),
-    [products],
-  );
+  const maxPrice = useMemo(() => Math.max(500000, ...products.map((p) => p.price)), [products]);
   const [size, setSize] = useState<string | null>(null);
   const [color, setColor] = useState<string | null>(null);
   const [ceiling, setCeiling] = useState<number | null>(null);
@@ -46,7 +43,11 @@ export function Catalog({ products, category }: { products: Product[]; category?
       <aside className="space-y-8">
         <FilterGroup
           label="Size"
-          options={category ? allSizes.filter((s) => results.some((p) => p.sizes.includes(s)) || s === size) : allSizes}
+          options={
+            category
+              ? allSizes.filter((s) => results.some((p) => p.sizes.includes(s)) || s === size)
+              : allSizes
+          }
           value={size}
           onChange={setSize}
         />

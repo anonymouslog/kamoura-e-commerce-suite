@@ -11,7 +11,8 @@ export const Route = createFileRoute("/bag")({
       { title: "Your bag — Kamoura" },
       {
         name: "description",
-        content: "Review the pieces in your Kamoura bag, adjust quantities and continue to checkout.",
+        content:
+          "Review the pieces in your Kamoura bag, adjust quantities and continue to checkout.",
       },
       { property: "og:title", content: "Your bag — Kamoura" },
       { property: "og:description", content: "Review your selection before placing the order." },

@@ -43,6 +43,7 @@ const imageKeyInput = z
   .max(240)
   .regex(/^products\/[a-z0-9-]+\.(?:jpe?g|png|webp|avif)$/i, "Invalid product image key.");
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function assertAdmin(supabase: any, userId: string) {
   const { data } = await supabase
     .from("user_roles")
@@ -81,26 +82,24 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
       .maybeSingle();
     if (currentError) throw new Error(currentError.message);
 
-    const { error } = await context.supabase
-      .from("products")
-      .upsert(
-        {
-          slug: data.slug,
-          name: data.name,
-          category_slug: data.category_slug,
-          base_price: data.price,
-          description: data.description,
-          details: data.details,
-          sizes: data.sizes,
-          colors: data.colors,
-          stock: data.stock,
-          image_key: data.image_key || null,
-          image_url: data.image_url ?? null,
-          status: data.status,
-          is_featured: data.is_featured,
-        },
-        { onConflict: "slug" },
-      );
+    const { error } = await context.supabase.from("products").upsert(
+      {
+        slug: data.slug,
+        name: data.name,
+        category_slug: data.category_slug,
+        base_price: data.price,
+        description: data.description,
+        details: data.details,
+        sizes: data.sizes,
+        colors: data.colors,
+        stock: data.stock,
+        image_key: data.image_key || null,
+        image_url: data.image_url ?? null,
+        status: data.status,
+        is_featured: data.is_featured,
+      },
+      { onConflict: "slug" },
+    );
     if (error) throw new Error(error.message);
 
     const previousImageKey = current?.image_key;
@@ -179,7 +178,8 @@ export const adminDeleteProduct = createServerFn({ method: "POST" })
       const { error: storageError } = await context.supabase.storage
         .from(productImageBucket)
         .remove([product.image_key]);
-      if (storageError) throw new Error(`Product image could not be removed: ${storageError.message}`);
+      if (storageError)
+        throw new Error(`Product image could not be removed: ${storageError.message}`);
     }
 
     const { error } = await context.supabase.from("products").delete().eq("slug", data.slug);

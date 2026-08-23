@@ -18,8 +18,7 @@ const publicContact = {
   phoneDisplay: "08143359771",
   phoneE164: "+2348143359771",
   email: "kamoura595@gmail.com",
-  instagram:
-    "https://www.instagram.com/kam_oura99?igsh=ejE2eHF6NGR5dXNo&utm_source=qr",
+  instagram: "https://www.instagram.com/kam_oura99?igsh=ejE2eHF6NGR5dXNo&utm_source=qr",
   tiktok: "https://www.tiktok.com/@_kam_oura?_r=1&_t=ZS-98nHzmYaJ09",
 } as const;
 

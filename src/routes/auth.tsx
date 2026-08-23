@@ -112,9 +112,7 @@ function AuthPage() {
       </div>
 
       <form onSubmit={submit} className="space-y-5">
-        {mode === "sign-up" && (
-          <Field label="Full name" value={name} onChange={setName} />
-        )}
+        {mode === "sign-up" && <Field label="Full name" value={name} onChange={setName} />}
         <Field label="Email" type="email" value={email} onChange={setEmail} />
         <Field label="Password" type="password" value={password} onChange={setPassword} />
         <button

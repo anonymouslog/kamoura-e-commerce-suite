@@ -32,7 +32,9 @@ function Settings() {
         onSubmit={async (e) => {
           e.preventDefault();
           setSaving(true);
-          await updateMyProfile({ data: { full_name: name, phone, marketing_opt_in: marketingOptIn } });
+          await updateMyProfile({
+            data: { full_name: name, phone, marketing_opt_in: marketingOptIn },
+          });
           setSaving(false);
           await queryClient.invalidateQueries({ queryKey: ["account"] });
         }}

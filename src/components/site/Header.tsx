@@ -8,13 +8,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 
+import type { User } from "@supabase/supabase-js";
+
 const linkClass =
   "text-[0.72rem] uppercase tracking-[0.18em] text-grey transition-colors hover:text-ivory";
 
 export function Header() {
   const { count } = useCart();
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {

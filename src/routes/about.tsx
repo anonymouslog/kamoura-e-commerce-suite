@@ -37,8 +37,8 @@ function About() {
         <div className="space-y-6 text-sm leading-relaxed text-grey">
           <p>
             Kamoura began with a single overcoat, remade eleven times until the shoulder fell
-            correctly. That is still how the label works: one pattern, revised until it stops
-            asking for attention.
+            correctly. That is still how the label works: one pattern, revised until it stops asking
+            for attention.
           </p>
           <p>
             Cloth comes from mills we can name — tropical wool from Biella, cashmere spun in the
@@ -46,9 +46,9 @@ function About() {
             Lagos, where the studio is.
           </p>
           <p>
-            Runs are small, usually under sixty pieces. When a size sells through, it is gone
-            until the cloth is available again. We would rather be quietly out of stock than
-            loudly repetitive.
+            Runs are small, usually under sixty pieces. When a size sells through, it is gone until
+            the cloth is available again. We would rather be quietly out of stock than loudly
+            repetitive.
           </p>
           <div className="rule-gold w-24" />
           <p className="text-ivory">

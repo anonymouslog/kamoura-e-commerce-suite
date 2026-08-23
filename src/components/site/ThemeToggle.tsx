@@ -7,14 +7,16 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
 function setThemeCookie(theme: "light" | "dark") {
   try {
     if (typeof document === "undefined") return;
-    var cookie =
+    const cookie =
       "kamoura-theme=" +
       encodeURIComponent(theme) +
       "; Path=/; Max-Age=" +
       COOKIE_MAX_AGE +
       "; SameSite=Lax";
     document.cookie = cookie;
-  } catch (e) {}
+  } catch {
+    /* ignore cookie write errors */
+  }
 }
 
 function applyTheme(theme: "light" | "dark") {
@@ -34,7 +36,9 @@ export function ThemeToggle() {
     applyTheme(resolved);
     try {
       setThemeCookie(resolved);
-    } catch (e) {}
+    } catch {
+      /* ignore cookie write errors */
+    }
   }, []);
 
   return (

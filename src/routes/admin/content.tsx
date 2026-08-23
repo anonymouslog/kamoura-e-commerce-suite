@@ -71,7 +71,11 @@ function AdminContent() {
             }
           }}
         >
-          <Field label="Hero title" value={form.heroTitle} onChange={(value) => setForm((prev) => ({ ...prev, heroTitle: value }))} />
+          <Field
+            label="Hero title"
+            value={form.heroTitle}
+            onChange={(value) => setForm((prev) => ({ ...prev, heroTitle: value }))}
+          />
           <Field
             label="Hero subtitle"
             value={form.heroSubtitle}

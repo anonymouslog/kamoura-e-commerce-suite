@@ -135,7 +135,11 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  h1, h2, h3, h4, .font-display {
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-display {
     font-family: var(--font-display);
     font-weight: 600;
     letter-spacing: -0.02em;
@@ -164,12 +168,7 @@
 }
 
 @utility rule-gold {
-  background-image: linear-gradient(
-    to right,
-    transparent,
-    var(--color-gold-soft),
-    transparent
-  );
+  background-image: linear-gradient(to right, transparent, var(--color-gold-soft), transparent);
   height: 1px;
 }
 

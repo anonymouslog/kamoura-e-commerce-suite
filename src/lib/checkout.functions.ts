@@ -51,11 +51,24 @@ export const placeOrder = createServerFn({ method: "POST" })
     if (token) {
       const userClient = publicServerClient(token);
       const { data: userData, error } = await userClient.auth.getUser(token);
-      if (error || !userData.user) throw new Error("Your session has expired. Please sign in again.");
+      if (error || !userData.user)
+        throw new Error("Your session has expired. Please sign in again.");
       userId = userData.user.id;
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const reqKey = requestKey(request);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: rateLimitError } = await (supabaseAdmin as any).rpc(
+      "checkout_rate_limit_touch",
+      {
+        p_request_key: reqKey,
+      },
+    );
+    if (rateLimitError) throw new Error(rateLimitError.message);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: result, error } = await (supabaseAdmin as any).rpc("create_checkout_order", {
       p_user_id: userId,
       p_channel: data.channel,
@@ -66,12 +79,13 @@ export const placeOrder = createServerFn({ method: "POST" })
       p_customer_note: data.customer_note ?? null,
       p_shipping_address: data.address,
       p_items: data.items,
-      p_request_key: requestKey(request),
+      p_request_key: reqKey,
     });
     if (error) throw new Error(error.message);
 
     const order = Array.isArray(result) ? result[0] : result;
-    if (!order?.id || !order.reference) throw new Error("Order creation did not return a confirmation.");
+    if (!order?.id || !order.reference)
+      throw new Error("Order creation did not return a confirmation.");
 
     const { data: orderItems, error: itemError } = await supabaseAdmin
       .from("order_items")

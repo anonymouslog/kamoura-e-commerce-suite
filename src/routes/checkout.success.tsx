@@ -32,11 +32,7 @@ function Success() {
     <div className="mx-auto max-w-xl px-5 py-28 text-center sm:px-8">
       <div className="rule-gold mx-auto w-20" />
       <h1 className="mt-8 font-display text-4xl text-ivory">Your order is with us</h1>
-      {ref && (
-        <p className="numeral mt-4 text-sm text-gold">
-          Reference {ref}
-        </p>
-      )}
+      {ref && <p className="numeral mt-4 text-sm text-gold">Reference {ref}</p>}
       <p className="mt-6 text-sm leading-relaxed text-grey">
         {via === "email"
           ? "An email draft was opened with your order details — send it and we will reply to confirm."

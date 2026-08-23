@@ -20,14 +20,13 @@ function PrivacyPolicy() {
       <h1 className="mt-4 font-display text-4xl text-ivory sm:text-5xl">Privacy Policy</h1>
       <div className="mt-10 space-y-6 text-sm leading-relaxed text-grey">
         <p>
-          Kamoura collects the minimum data needed to process orders, manage accounts, and reply
-          to studio enquiries. That includes contact details, order history, shipping addresses,
-          and authentication data.
+          Kamoura collects the minimum data needed to process orders, manage accounts, and reply to
+          studio enquiries. That includes contact details, order history, shipping addresses, and
+          authentication data.
         </p>
         <p>
-          Order confirmations may be delivered through WhatsApp or email. If you use either
-          channel, the details you submit for the order will be shared with the destination you
-          choose.
+          Order confirmations may be delivered through WhatsApp or email. If you use either channel,
+          the details you submit for the order will be shared with the destination you choose.
         </p>
         <p>
           We use Supabase for authentication and storage. Data in your account is protected by row
@@ -40,7 +39,10 @@ function PrivacyPolicy() {
         </p>
         <p>
           To request access, correction, or deletion of your data, contact the studio through the
-          <Link to="/contact" className="text-ivory underline decoration-gold/40 underline-offset-4">
+          <Link
+            to="/contact"
+            className="text-ivory underline decoration-gold/40 underline-offset-4"
+          >
             contact page
           </Link>
           .
