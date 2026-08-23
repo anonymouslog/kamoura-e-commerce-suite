@@ -226,17 +226,7 @@ do $$ begin
     for select to authenticated using (user_id = auth.uid());
 exception when duplicate_object then null; end $$;
 
-do $$ begin
-  create policy "orders: create own" on public.orders
-    for insert to authenticated
-    with check (user_id = auth.uid() or user_id is null);
-exception when duplicate_object then null; end $$;
 
-do $$ begin
-  create policy "orders: create guest" on public.orders
-    for insert to anon
-    with check (user_id is null);
-exception when duplicate_object then null; end $$;
 
 do $$ begin
   create policy "orders: admins all" on public.orders
@@ -272,29 +262,7 @@ do $$ begin
     );
 exception when duplicate_object then null; end $$;
 
-do $$ begin
-  create policy "order_items: create own" on public.order_items
-    for insert to authenticated
-    with check (
-      exists (
-        select 1
-        from public.orders o
-        where o.id = order_id and (o.user_id = auth.uid() or o.user_id is null)
-      )
-    );
-exception when duplicate_object then null; end $$;
 
-do $$ begin
-  create policy "order_items: create guest" on public.order_items
-    for insert to anon
-    with check (
-      exists (
-        select 1
-        from public.orders o
-        where o.id = order_id and o.user_id is null
-      )
-    );
-exception when duplicate_object then null; end $$;
 
 do $$ begin
   create policy "order_items: admins all" on public.order_items
