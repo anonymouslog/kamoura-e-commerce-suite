@@ -23,10 +23,11 @@ export type Product = {
 };
 
 export type ProductRow = {
+  id?: string;
   slug: string;
   name: string;
   category_slug: string;
-  price: number | string;
+  base_price: number | string;
   description: string | null;
   details: string[] | null;
   sizes: string[] | null;
@@ -36,6 +37,7 @@ export type ProductRow = {
   image_url: string | null;
   featured?: boolean;
   is_featured?: boolean;
+  status?: "draft" | "active" | "archived";
 };
 
 const bundledImages: Record<string, string> = { p1, p2, p3, p4 };
@@ -50,7 +52,7 @@ export function mapProduct(row: ProductRow): Product {
     slug: row.slug,
     name: row.name,
     category: row.category_slug,
-    price: Number(row.price),
+    price: Number(row.base_price),
     description: row.description ?? "",
     details: row.details ?? [],
     sizes: row.sizes ?? [],
@@ -60,6 +62,8 @@ export function mapProduct(row: ProductRow): Product {
     stock: row.stock,
   };
 }
+
+export type CategorySlug = "outerwear" | "knitwear" | "shirting" | "trousers";
 
 export const categories: { slug: string; name: string; blurb: string }[] = [
   { slug: "outerwear", name: "Outerwear", blurb: "Coats cut long and unhurried." },

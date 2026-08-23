@@ -7,7 +7,7 @@ export const defaultProducts: ProductRow[] = [
     slug: "atlas-wool-overcoat",
     name: "Atlas Wool Overcoat",
     category_slug: "outerwear",
-    price: 389000,
+    base_price: 389000,
     description:
       "A single-breasted overcoat in double-faced Italian wool, cut a little longer than the body asks for. Unlined shoulders keep the drape quiet.",
     details: ["92% virgin wool, 8% cashmere", "Horn buttons", "Made in Portugal"],
@@ -24,7 +24,7 @@ export const defaultProducts: ProductRow[] = [
     slug: "lune-silk-shirt",
     name: "Lune Silk Shirt",
     category_slug: "shirting",
-    price: 148000,
+    base_price: 148000,
     description:
       "Sand-washed silk with a relaxed collar and a slightly dropped shoulder. It creases; that is the point.",
     details: ["100% mulberry silk", "Mother-of-pearl buttons", "Cold hand wash"],
@@ -41,7 +41,7 @@ export const defaultProducts: ProductRow[] = [
     slug: "meridian-cashmere-knit",
     name: "Meridian Cashmere Knit",
     category_slug: "knitwear",
-    price: 212000,
+    base_price: 212000,
     description:
       "Grade-A Mongolian cashmere knitted at a mid gauge, with a rib collar that holds its shape through the season.",
     details: ["100% cashmere", "Mid-gauge knit", "Made in Scotland"],
@@ -58,7 +58,7 @@ export const defaultProducts: ProductRow[] = [
     slug: "solstice-wool-trouser",
     name: "Solstice Wool Trouser",
     category_slug: "trousers",
-    price: 164000,
+    base_price: 164000,
     description:
       "A high-rise trouser in tropical wool with a single forward pleat and a full break at the ankle.",
     details: ["Tropical wool", "Hook-and-bar closure", "Unfinished hem on request"],
@@ -75,7 +75,7 @@ export const defaultProducts: ProductRow[] = [
     slug: "harbour-poplin-shirt",
     name: "Harbour Poplin Shirt",
     category_slug: "shirting",
-    price: 96000,
+    base_price: 96000,
     description:
       "Compact cotton poplin, cut boxy through the body. The everyday shirt in the house rotation.",
     details: ["Egyptian cotton poplin", "Single-needle side seams"],
@@ -92,7 +92,7 @@ export const defaultProducts: ProductRow[] = [
     slug: "nocturne-tailored-trouser",
     name: "Nocturne Tailored Trouser",
     category_slug: "trousers",
-    price: 178000,
+    base_price: 178000,
     description:
       "A narrower cousin to the Solstice, in a matte wool that reads almost black under most light.",
     details: ["Super 110s wool", "Flat front", "Made in Italy"],
@@ -109,7 +109,7 @@ export const defaultProducts: ProductRow[] = [
     slug: "vesper-merino-crew",
     name: "Vesper Merino Crew",
     category_slug: "knitwear",
-    price: 118000,
+    base_price: 118000,
     description: "Fine merino with a close crew neck — the layer that disappears under a coat.",
     details: ["Extra-fine merino", "Fully fashioned sleeves"],
     sizes: ["S", "M", "L"],
@@ -125,7 +125,7 @@ export const defaultProducts: ProductRow[] = [
     slug: "eclipse-belted-coat",
     name: "Eclipse Belted Coat",
     category_slug: "outerwear",
-    price: 425000,
+    base_price: 425000,
     description:
       "A wrap coat with a self belt and no visible closure, in a brushed wool that softens with wear.",
     details: ["Brushed wool blend", "Self belt", "Made in Portugal"],

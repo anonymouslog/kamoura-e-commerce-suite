@@ -102,27 +102,29 @@ function Checkout() {
       setPlacing(channel);
       let order;
       try {
-        order = await placeOrder.fetch({
-          channel,
-          contact_name: parsed.data.fullName,
-          contact_phone: parsed.data.phone,
-          contact_email: parsed.data.email,
-          shipping_method: parsed.data.shippingMethod,
-          customer_note: parsed.data.note ?? null,
-          address: {
-            line1: parsed.data.line1,
-            line2: parsed.data.line2 ?? null,
-            city: parsed.data.city,
-            state: parsed.data.state,
-            postal_code: parsed.data.postalCode ?? null,
-            country: parsed.data.country,
+        order = await placeOrder({
+          data: {
+            channel,
+            contact_name: parsed.data.fullName,
+            contact_phone: parsed.data.phone,
+            contact_email: parsed.data.email,
+            shipping_method: parsed.data.shippingMethod,
+            customer_note: parsed.data.note ?? undefined,
+            address: {
+              line1: parsed.data.line1,
+              line2: parsed.data.line2 ?? undefined,
+              city: parsed.data.city,
+              state: parsed.data.state,
+              postal_code: parsed.data.postalCode ?? undefined,
+              country: parsed.data.country,
+            },
+            items: items.map((i) => ({
+              slug: i.slug,
+              size: i.size,
+              color: i.color,
+              quantity: i.quantity,
+            })),
           },
-          items: items.map((i) => ({
-            slug: i.slug,
-            size: i.size,
-            color: i.color,
-            quantity: i.quantity,
-          })),
         });
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to save order.");
