@@ -1,3 +1,4 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -6,14 +7,16 @@ import {
   buildOrderMessage,
   mailtoUrl,
   orderSchema,
-  shippingCost,
   whatsappUrl,
   type OrderDetails,
 } from "@/lib/order";
 import { placeOrder } from "@/lib/checkout.functions";
 import { formatPrice, storeConfig } from "@/lib/store-config";
+import { quoteShipping } from "@/lib/shipping";
+import { shippingConfigurationQuery } from "@/lib/shipping-queries";
 
 export const Route = createFileRoute("/checkout/")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(shippingConfigurationQuery),
   head: () => ({
     meta: [
       { title: "Checkout — Kamoura" },
@@ -42,19 +45,21 @@ const empty: OrderDetails = {
   state: "",
   postalCode: "",
   country: "Nigeria",
-  shippingMethod: "standard",
+  shippingMethod: "same_state",
   note: "",
 };
 
 function Checkout() {
+  const { data: shippingConfiguration } = useSuspenseQuery(shippingConfigurationQuery);
   const { items, subtotal, clear } = useCart();
   const navigate = useNavigate();
   const [form, setForm] = useState<OrderDetails>(empty);
   const [errors, setErrors] = useState<Errors>({});
   const [placing, setPlacing] = useState<"whatsapp" | "email" | null>(null);
 
-  const shipping = shippingCost(form.shippingMethod);
-  const total = subtotal + shipping;
+  const quote = quoteShipping(shippingConfiguration, form.state);
+  const shipping = quote?.fee ?? null;
+  const total = shipping === null ? null : subtotal + shipping;
 
   if (items.length === 0) {
     return (
@@ -79,7 +84,15 @@ function Checkout() {
   };
 
   const place = (channel: "whatsapp" | "email") => {
-    const parsed = orderSchema.safeParse(form);
+    if (!shippingConfiguration) {
+      toast.error("Delivery has not been configured yet. Please contact the store.");
+      return;
+    }
+    if (!quote) {
+      toast.error("Enter your delivery state to calculate shipping.");
+      return;
+    }
+    const parsed = orderSchema.safeParse({ ...form, shippingMethod: quote.method });
     if (!parsed.success) {
       const next: Errors = {};
       for (const issue of parsed.error.issues) {
@@ -108,7 +121,7 @@ function Checkout() {
             contact_name: parsed.data.fullName,
             contact_phone: parsed.data.phone,
             contact_email: parsed.data.email,
-            shipping_method: parsed.data.shippingMethod,
+            shipping_method: quote.method,
             customer_note: parsed.data.note ?? undefined,
             address: {
               line1: parsed.data.line1,
@@ -225,31 +238,25 @@ function Checkout() {
 
           <fieldset className="space-y-4">
             <legend className="eyebrow">Shipping method</legend>
-            {storeConfig.shipping.map((s) => (
-              <label
-                key={s.id}
-                className={`flex cursor-pointer items-center justify-between gap-4 border px-4 py-4 text-sm transition-colors ${
-                  form.shippingMethod === s.id
-                    ? "border-gold text-ivory"
-                    : "border-border text-grey hover:border-gold-soft"
-                }`}
-              >
-                <span className="flex items-center gap-3">
-                  <input
-                    type="radio"
-                    name="shippingMethod"
-                    value={s.id}
-                    checked={form.shippingMethod === s.id}
-                    onChange={() => set("shippingMethod")(s.id)}
-                    className="accent-[var(--color-gold)]"
-                  />
-                  {s.label}
+            {quote ? (
+              <div className="flex items-center justify-between gap-4 border border-gold px-4 py-4 text-sm">
+                <span>
+                  <span className="block text-ivory">{quote.label}</span>
+                  <span className="mt-1 block text-xs text-grey">
+                    Dispatch state: {shippingConfiguration?.dispatch_state}
+                  </span>
                 </span>
                 <span className="numeral text-silver">
-                  {s.cost === 0 ? "Free" : formatPrice(s.cost)}
+                  {quote.fee === 0 ? "Free" : formatPrice(quote.fee)}
                 </span>
-              </label>
-            ))}
+              </div>
+            ) : (
+              <p className="border border-border px-4 py-4 text-sm text-grey">
+                {shippingConfiguration
+                  ? "Enter your delivery state to see the applicable method and fee."
+                  : "Shipping is not configured yet. Please contact the store before placing an order."}
+              </p>
+            )}
           </fieldset>
 
           <fieldset>
@@ -288,19 +295,25 @@ function Checkout() {
             <div className="flex justify-between">
               <dt className="text-grey">Shipping</dt>
               <dd className="numeral text-silver">
-                {shipping === 0 ? "Free" : formatPrice(shipping)}
+                {shipping === null
+                  ? "Unavailable"
+                  : shipping === 0
+                    ? "Free"
+                    : formatPrice(shipping)}
               </dd>
             </div>
           </dl>
           <div className="mt-6 flex items-baseline justify-between border-t border-border pt-5">
             <span className="text-xs uppercase tracking-[0.18em] text-grey">Total</span>
-            <span className="numeral text-lg text-gold">{formatPrice(total)}</span>
+            <span className="numeral text-lg text-gold">
+              {total === null ? "Unavailable" : formatPrice(total)}
+            </span>
           </div>
 
           <button
             type="button"
             onClick={() => place("whatsapp")}
-            disabled={placing !== null}
+            disabled={placing !== null || !quote}
             className="mt-7 w-full border border-gold bg-gold px-7 py-4 text-xs uppercase tracking-[0.2em] text-primary-foreground transition-colors hover:bg-gold-soft hover:text-ivory"
           >
             {placing === "whatsapp" ? "Creating order..." : "Place order on WhatsApp"}
@@ -308,7 +321,7 @@ function Checkout() {
           <button
             type="button"
             onClick={() => place("email")}
-            disabled={placing !== null}
+            disabled={placing !== null || !quote}
             className="mt-3 w-full border border-border px-7 py-4 text-xs uppercase tracking-[0.2em] text-ivory transition-colors hover:border-gold-soft"
           >
             {placing === "email" ? "Creating order..." : "Place order by email"}

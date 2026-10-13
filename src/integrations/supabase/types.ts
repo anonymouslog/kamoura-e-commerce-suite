@@ -80,6 +80,30 @@ export type Database = {
         };
         Relationships: [];
       };
+      store_shipping_config: {
+        Row: {
+          dispatch_state: string;
+          id: boolean;
+          interstate_fee: number;
+          same_state_fee: number;
+          updated_at: string;
+        };
+        Insert: {
+          dispatch_state: string;
+          id?: boolean;
+          interstate_fee: number;
+          same_state_fee: number;
+          updated_at?: string;
+        };
+        Update: {
+          dispatch_state?: string;
+          id?: boolean;
+          interstate_fee?: number;
+          same_state_fee?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       newsletter_signups: {
         Row: {
           created_at: string;

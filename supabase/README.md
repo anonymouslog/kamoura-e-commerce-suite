@@ -16,8 +16,9 @@ Wait only if you still plan to redesign the table structure before launch.
 4. Run `supabase/schema.sql` in the Supabase SQL editor.
 5. Confirm the seed categories and starter products exist.
 6. Log in once and create or assign an admin role in `public.user_roles`.
-7. Apply each migration in `supabase/migrations/` in timestamp order if the baseline schema was already run before these files were added.
+7. Apply all incremental migrations in `supabase/migrations/` in timestamp order after the baseline schema.
 8. Verify `/admin`, `/account`, catalog pages, image upload, and order placement.
+9. In `/admin/shipping`, enter the actual dispatch state and delivery fees before enabling checkout.
 
 ## Later path
 
@@ -43,11 +44,28 @@ migrations once in the Supabase SQL editor, in this order:
 3. `20260813000400_single_admin_guard.sql`
 4. `20260813000500_site_copy_cms.sql`
 5. `20260813000600_product_image_storage.sql`
+6. `20260813000700_secure_checkout.sql`
+7. `20260813000800_order_notifications.sql`
+8. `20260823000900_rate_limit_rpc.sql`
+9. `20260823001000_security_hardening.sql`
+10. `20261013000100_collections_users_shipping.sql`
 
 The final migration creates the `product-images` Storage bucket. It allows the
 public store to display product images but permits upload and deletion only for
-the admin role. The app removes an uploaded storage object before removing its
-product record, and removes an old object after an image replacement.
+the admin role. Product records are changed before storage cleanup so storage
+failures cannot destroy an image while leaving the product operation incomplete.
+
+After applying `20261013000100_collections_users_shipping.sql`:
+
+- Collections remain stored in `public.categories` for backward compatibility,
+  but administrators cannot delete them. RLS and a database trigger enforce this.
+- Shipping settings are stored in `public.store_shipping_config`. No dispatch
+  state or price is seeded; set the actual state and fees in `/admin/shipping`.
+  Checkout remains unavailable until the settings have been saved.
+- The checkout RPC validates the destination state and calculates the applicable
+  same-state or interstate-waybill fee from the saved configuration.
+- The admin users page lists Supabase Auth users through the server-side service
+  role client. Keep `SUPABASE_SERVICE_ROLE_KEY` server-only.
 
 ## Operational notes
 

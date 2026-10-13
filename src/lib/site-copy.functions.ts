@@ -57,7 +57,7 @@ export const updateSiteCopy = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => siteCopyInput.parse(input))
   .handler(async ({ context, data }) => {
-    await assertAdmin(context.supabase as never, context.userId);
+    await assertAdmin(context.supabase, context.userId);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = context.supabase as any;
     const { error } = await supabase.from("site_copy").upsert(

@@ -17,11 +17,16 @@ import {
   LogOut,
   Store,
   Tags,
+  Truck,
+  Users,
 } from "lucide-react";
 import type { ComponentType } from "react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { accountQuery } from "@/lib/account-queries";
 import { ThemeToggle } from "@/components/site/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -30,7 +35,7 @@ export const Route = createFileRoute("/admin")({
   beforeLoad: async ({ context, location }) => {
     if (location.pathname === "/admin/login") return;
     try {
-      const account = await context.queryClient.ensureQueryData(accountQuery);
+      const account = await context.queryClient.fetchQuery({ ...accountQuery, staleTime: 0 });
       if (!account?.roles?.includes("admin")) {
         throw redirect({ to: "/account", search: { redirect: location.href } });
       }
@@ -52,6 +57,8 @@ function AdminRouteBoundary() {
 
 function AdminLayout() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [signingOut, setSigningOut] = useState(false);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -77,8 +84,10 @@ function AdminLayout() {
               title="Commerce"
               items={[
                 { to: "/admin/products", label: "Products", icon: Package },
-                { to: "/admin/categories", label: "Categories", icon: Tags },
+                { to: "/admin/collections", label: "Collections", icon: Tags },
                 { to: "/admin/orders", label: "Orders", icon: ShoppingBag },
+                { to: "/admin/users", label: "Users", icon: Users },
+                { to: "/admin/shipping", label: "Shipping", icon: Truck },
               ]}
             />
           </nav>
@@ -109,14 +118,28 @@ function AdminLayout() {
               </Link>
               <button
                 type="button"
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  void navigate({ to: "/auth" });
+                disabled={signingOut}
+                onClick={() => {
+                  void (async () => {
+                    setSigningOut(true);
+                    try {
+                      const { error } = await supabase.auth.signOut();
+                      if (error) throw error;
+                      queryClient.clear();
+                      await navigate({ to: "/auth", replace: true });
+                    } catch (error) {
+                      toast.error(
+                        error instanceof Error ? error.message : "Sign out could not be completed.",
+                      );
+                    } finally {
+                      setSigningOut(false);
+                    }
+                  })();
                 }}
-                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs uppercase tracking-[0.14em] text-grey transition-colors hover:border-gold hover:text-ivory"
+                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs uppercase tracking-[0.14em] text-grey transition-colors hover:border-gold hover:text-ivory disabled:opacity-50"
               >
                 <LogOut className="size-4" />
-                Sign out
+                {signingOut ? "Signing out..." : "Sign out"}
               </button>
             </div>
           </header>

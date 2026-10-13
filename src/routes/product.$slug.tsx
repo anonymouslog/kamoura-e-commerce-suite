@@ -6,7 +6,7 @@ import { useCart } from "@/lib/cart";
 import { dedupeGalleryImages, type Product } from "@/lib/catalog";
 import { formatPrice } from "@/lib/store-config";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { productQuery, productsQuery } from "@/lib/catalog-queries";
+import { categoriesQuery, productQuery, productsQuery } from "@/lib/catalog-queries";
 
 export const Route = createFileRoute("/product/$slug")({
   loader: ({ params, context }) => context.queryClient.ensureQueryData(productQuery(params.slug)),
@@ -52,6 +52,7 @@ function ProductPage() {
   const [color, setColor] = useState(product.colors[0] ?? "");
   const soldOut = product.stock === 0;
   const { data: products } = useSuspenseQuery(productsQuery);
+  const { data: collections } = useSuspenseQuery(categoriesQuery);
   const suggestions = products
     .filter((p) => p.category === product.category && p.slug !== product.slug)
     .slice(0, 6);
@@ -71,7 +72,8 @@ function ProductPage() {
           params={{ category: product.category }}
           className="hover:text-ivory"
         >
-          {product.category}
+          {collections.find((collection) => collection.slug === product.category)?.name ??
+            product.category}
         </Link>
       </nav>
 

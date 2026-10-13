@@ -1,3 +1,5 @@
+import { shippingMethodLabel } from "@/lib/shipping";
+
 type OrderNotificationItem = {
   name: string;
   size: string;
@@ -63,7 +65,7 @@ function orderText(order: OrderNotificationPayload): string {
     ...lines,
     "",
     `Subtotal: NGN ${order.subtotal}`,
-    `Shipping: NGN ${order.shippingCost}`,
+    `Shipping (${shippingMethodLabel(order.shippingMethod)}): NGN ${order.shippingCost}`,
     `Total: NGN ${order.total}`,
     "",
     `${order.contactName} | ${order.contactPhone} | ${order.contactEmail}`,

@@ -8,7 +8,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import hero from "@/assets/hero.jpg";
 import appCss from "../styles.css?url";
@@ -16,6 +16,7 @@ import { CartProvider } from "@/lib/cart";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { Toaster } from "@/components/ui/sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
   return (
@@ -156,7 +157,34 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const router = useRouter();
   const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
+
+  useEffect(() => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_OUT" && event !== "SIGNED_IN" && event !== "USER_UPDATED") return;
+      queryClient.clear();
+
+      const currentPath = router.state.location.pathname;
+      const protectedAdminPath =
+        currentPath === "/admin" ||
+        (currentPath.startsWith("/admin/") && currentPath !== "/admin/login");
+      if (event === "SIGNED_OUT" && protectedAdminPath) {
+        queueMicrotask(() => void router.navigate({ to: "/auth", replace: true }));
+      }
+      queueMicrotask(() => void router.invalidate());
+    });
+
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) void router.invalidate();
+    };
+    window.addEventListener("pageshow", onPageShow);
+
+    return () => {
+      subscription.subscription.unsubscribe();
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [queryClient, router]);
 
   return (
     <QueryClientProvider client={queryClient}>

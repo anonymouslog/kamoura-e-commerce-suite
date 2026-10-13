@@ -1,11 +1,13 @@
 import { queryOptions } from "@tanstack/react-query";
 import {
-  adminListCategories,
+  adminListCollections,
   adminListNewsletter,
   adminListOrders,
   adminListProducts,
+  adminListUsers,
 } from "./admin.functions";
 import type { ProductRow } from "./catalog";
+import { adminGetShippingConfiguration } from "./shipping.functions";
 
 export type OrderStatusType =
   "placed" | "confirmed" | "paid" | "fulfilled" | "shipped" | "delivered" | "cancelled";
@@ -40,6 +42,7 @@ export type AdminOrderRow = {
   total: number;
   subtotal: number;
   shipping_cost: number;
+  shipping_method: string;
   created_at: string;
   order_items?: AdminOrderItemRow[];
   order_events?: AdminOrderEventRow[];
@@ -51,16 +54,16 @@ export type NewsletterSignupRow = {
   created_at: string;
 };
 
-export type AdminCategoryRow = {
+export type AdminCollectionRow = {
   slug: string;
   name: string;
   blurb: string | null;
   sort_order: number | null;
 };
 
-export const adminCategoriesQuery = queryOptions({
-  queryKey: ["admin", "categories"],
-  queryFn: async () => (await adminListCategories()) as unknown as AdminCategoryRow[],
+export const adminCollectionsQuery = queryOptions({
+  queryKey: ["admin", "collections"],
+  queryFn: async () => (await adminListCollections()) as unknown as AdminCollectionRow[],
   staleTime: 30_000,
 });
 
@@ -79,5 +82,25 @@ export const adminOrdersQuery = queryOptions({
 export const adminNewsletterQuery = queryOptions({
   queryKey: ["admin", "newsletter"],
   queryFn: async () => (await adminListNewsletter()) as unknown as NewsletterSignupRow[],
+  staleTime: 30_000,
+});
+
+export const adminUsersQuery = queryOptions({
+  queryKey: ["admin", "users"],
+  queryFn: async () =>
+    (await adminListUsers()) as Array<{
+      id: string;
+      email: string | null;
+      name: string | null;
+      created_at: string;
+      confirmed: boolean;
+      role: string | null;
+    }>,
+  staleTime: 30_000,
+});
+
+export const adminShippingConfigurationQuery = queryOptions({
+  queryKey: ["admin", "shipping-configuration"],
+  queryFn: async () => await adminGetShippingConfiguration(),
   staleTime: 30_000,
 });

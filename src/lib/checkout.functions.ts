@@ -16,7 +16,7 @@ const orderInput = z.object({
   contact_name: z.string().trim().min(2).max(120),
   contact_phone: z.string().trim().min(5).max(40),
   contact_email: z.string().trim().email().max(160),
-  shipping_method: z.enum(["standard", "express", "pickup"]),
+  shipping_method: z.enum(["same_state", "interstate_waybill"]),
   customer_note: z.string().trim().max(500).optional(),
   address: z.object({
     line1: z.string().trim().min(3).max(200),

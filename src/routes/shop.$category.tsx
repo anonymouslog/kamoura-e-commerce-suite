@@ -1,12 +1,14 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { Catalog } from "@/components/site/Catalog";
-import { getCategory, type CategorySlug } from "@/lib/catalog";
-import { productsQuery } from "@/lib/catalog-queries";
+import { getCategory } from "@/lib/catalog";
+import { categoriesQuery, productsQuery } from "@/lib/catalog-queries";
 
 export const Route = createFileRoute("/shop/$category")({
-  loader: ({ params }) => {
-    const category = getCategory(params.category);
+  loader: async ({ context, params }) => {
+    const collections = await context.queryClient.ensureQueryData(categoriesQuery);
+    const canonical = getCategory(params.category)?.slug ?? params.category;
+    const category = collections.find((collection) => collection.slug === canonical);
     if (!category) throw notFound();
     return { category, categorySlug: category.slug };
   },
@@ -42,7 +44,7 @@ function CategoryPage() {
       </nav>
       <h1 className="mt-5 font-display text-4xl text-ivory sm:text-5xl">{category.name}</h1>
       <p className="mt-4 max-w-lg text-sm text-grey">{category.blurb}</p>
-      <Catalog products={products} category={categorySlug as CategorySlug} />
+      <Catalog products={products} category={categorySlug} />
     </div>
   );
 }

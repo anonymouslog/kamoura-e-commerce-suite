@@ -47,31 +47,13 @@ export const listCategories = createServerFn({ method: "GET" }).handler(async ()
     }));
   }
 
-  try {
-    const { data, error } = await publicClient()
-      .from("categories")
-      .select("slug,name,blurb,sort_order")
-      .order("sort_order", { ascending: true, nullsFirst: true })
-      .order("name", { ascending: true });
-    if (error) throw new Error(error.message);
-    return (
-      data ??
-      defaultCategories.map((category) => ({
-        slug: category.slug,
-        name: category.name,
-        blurb: category.blurb,
-        sort_order: null,
-      }))
-    );
-  } catch (error) {
-    console.warn("Category query skipped while Supabase is not configured:", error);
-    return defaultCategories.map((category) => ({
-      slug: category.slug,
-      name: category.name,
-      blurb: category.blurb,
-      sort_order: null,
-    }));
-  }
+  const { data, error } = await publicClient()
+    .from("categories")
+    .select("slug,name,blurb,sort_order")
+    .order("sort_order", { ascending: true, nullsFirst: true })
+    .order("name", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data ?? [];
 });
 
 export const listProducts = createServerFn({ method: "GET" }).handler(async () => {
@@ -79,19 +61,14 @@ export const listProducts = createServerFn({ method: "GET" }).handler(async () =
     return readLocalProducts().filter((product) => product.status === "active");
   }
 
-  try {
-    const { data, error } = await publicClient()
-      .from("products")
-      .select(SELECT)
-      .eq("status", "active")
-      .order("is_featured", { ascending: false })
-      .order("name");
-    if (error) throw new Error(error.message);
-    return data ?? [];
-  } catch (error) {
-    console.warn("Catalog query skipped while Supabase is not configured:", error);
-    return readLocalProducts().filter((product) => product.status === "active");
-  }
+  const { data, error } = await publicClient()
+    .from("products")
+    .select(SELECT)
+    .eq("status", "active")
+    .order("is_featured", { ascending: false })
+    .order("name");
+  if (error) throw new Error(error.message);
+  return data ?? [];
 });
 
 export const getProductBySlug = createServerFn({ method: "GET" })
@@ -104,20 +81,12 @@ export const getProductBySlug = createServerFn({ method: "GET" })
       return row ?? null;
     }
 
-    try {
-      const { data: row, error } = await publicClient()
-        .from("products")
-        .select(SELECT)
-        .eq("status", "active")
-        .eq("slug", data.slug)
-        .maybeSingle();
-      if (error) throw new Error(error.message);
-      return row ?? null;
-    } catch (error) {
-      console.warn("Product lookup skipped while Supabase is not configured:", error);
-      const row = readLocalProducts().find(
-        (product) => product.slug === data.slug && product.status === "active",
-      );
-      return row ?? null;
-    }
+    const { data: row, error } = await publicClient()
+      .from("products")
+      .select(SELECT)
+      .eq("status", "active")
+      .eq("slug", data.slug)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return row ?? null;
   });

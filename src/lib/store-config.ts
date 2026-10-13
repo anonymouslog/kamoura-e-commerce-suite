@@ -35,14 +35,7 @@ export const storeConfig = {
     { label: "TikTok", href: publicContact.tiktok },
   ] as const,
   currency: { code: "NGN", symbol: "\u20a6" },
-  shipping: [
-    { id: "standard", label: "Standard — 3–5 working days", cost: 4500 },
-    { id: "express", label: "Express — 1–2 working days", cost: 9500 },
-    { id: "pickup", label: "Collect from the Lagos atelier", cost: 0 },
-  ],
 } as const;
-
-export type ShippingMethodId = (typeof storeConfig.shipping)[number]["id"];
 
 export function formatPrice(amount: number | string | null | undefined): string {
   const safeAmount = Number(amount ?? 0);

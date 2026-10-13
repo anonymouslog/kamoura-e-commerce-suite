@@ -7,8 +7,8 @@ import {
   adminRemoveProductImage,
   adminUpsertProduct,
 } from "@/lib/admin.functions";
-import { adminCategoriesQuery, adminProductsQuery } from "@/lib/admin-queries";
-import { allColors, allSizes, categories } from "@/lib/catalog";
+import { adminCollectionsQuery, adminProductsQuery } from "@/lib/admin-queries";
+import { allColors, allSizes } from "@/lib/catalog";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin/products")({
@@ -36,7 +36,7 @@ const productImageBucket = "product-images";
 const emptyForm = (): ProductFormState => ({
   slug: "",
   name: "",
-  category_slug: categories[0]?.slug ?? "outerwear",
+  category_slug: "",
   price: "",
   description: "",
   details: "",
@@ -52,16 +52,16 @@ const emptyForm = (): ProductFormState => ({
 function Products() {
   const queryClient = useQueryClient();
   const { data: products } = useSuspenseQuery(adminProductsQuery);
-  const { data: liveCategories } = useSuspenseQuery(adminCategoriesQuery);
+  const { data: liveCollections } = useSuspenseQuery(adminCollectionsQuery);
   const categoryOptions = useMemo(
-    () =>
-      liveCategories.length
-        ? liveCategories.map((category) => ({ value: category.slug, label: category.name }))
-        : categories.map((category) => ({ value: category.slug, label: category.name })),
-    [liveCategories],
+    () => liveCollections.map((collection) => ({ value: collection.slug, label: collection.name })),
+    [liveCollections],
   );
   const [editingSlug, setEditingSlug] = useState("");
-  const [form, setForm] = useState<ProductFormState>(emptyForm());
+  const [form, setForm] = useState<ProductFormState>(() => ({
+    ...emptyForm(),
+    category_slug: categoryOptions[0]?.value ?? "",
+  }));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -76,11 +76,7 @@ function Products() {
     setForm({
       slug: editingProduct.slug,
       name: editingProduct.name ?? "",
-      category_slug:
-        editingProduct.category_slug ??
-        categoryOptions[0]?.value ??
-        categories[0]?.slug ??
-        "outerwear",
+      category_slug: editingProduct.category_slug ?? categoryOptions[0]?.value ?? "",
       price: String(Number(editingProduct.price ?? 0)),
       description: editingProduct.description ?? "",
       details: (editingProduct.details ?? []).join("\n"),
@@ -92,13 +88,13 @@ function Products() {
       status: editingProduct.status ?? "draft",
       is_featured: Boolean(editingProduct.featured ?? editingProduct.is_featured),
     });
-  }, [editingProduct]);
+  }, [editingProduct, categoryOptions]);
 
   const resetForm = () => {
     setEditingSlug("");
     setForm({
       ...emptyForm(),
-      category_slug: categoryOptions[0]?.value ?? categories[0]?.slug ?? "outerwear",
+      category_slug: categoryOptions[0]?.value ?? "",
     });
     setMessage(null);
     setError(null);
@@ -118,14 +114,22 @@ function Products() {
     const extension = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1];
     const key = `products/${crypto.randomUUID()}.${extension}`;
     setUploading(true);
-    const { error: uploadError } = await supabase.storage
-      .from(productImageBucket)
-      .upload(key, file, { cacheControl: "31536000", upsert: false });
-    setUploading(false);
-    if (uploadError) return setError(uploadError.message);
-    const { data } = supabase.storage.from(productImageBucket).getPublicUrl(key);
-    setForm((current) => ({ ...current, image_key: key, image_url: data.publicUrl }));
-    setMessage("Image uploaded. Save the product to publish this change.");
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from(productImageBucket)
+        .upload(key, file, { cacheControl: "31536000", upsert: false });
+      if (uploadError) {
+        setError(uploadError.message);
+        return;
+      }
+      const { data } = supabase.storage.from(productImageBucket).getPublicUrl(key);
+      setForm((current) => ({ ...current, image_key: key, image_url: data.publicUrl }));
+      setMessage("Image uploaded. Save the product to publish this change.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "The image could not be uploaded.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const removeImage = async () => {
@@ -137,11 +141,15 @@ function Products() {
     setMessage(null);
     setUploading(true);
     try {
-      await adminRemoveProductImage({
+      const result = await adminRemoveProductImage({
         data: { image_key: form.image_key, ...(editingSlug ? { slug: editingSlug } : {}) },
       });
       setForm((current) => ({ ...current, image_key: "", image_url: "" }));
-      setMessage("Image removed from storage and the product record.");
+      setMessage(
+        result.imageCleanupWarning
+          ? "Product image removed from its record, but its storage file could not be cleared."
+          : "Image removed from storage and the product record.",
+      );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The image could not be removed.");
     } finally {
@@ -202,7 +210,11 @@ function Products() {
                         </span>
                       </button>
                     </td>
-                    <td className="px-4 py-4 text-grey">{product.category_slug}</td>
+                    <td className="px-4 py-4 text-grey">
+                      {liveCollections.find(
+                        (collection) => collection.slug === product.category_slug,
+                      )?.name ?? product.category_slug}
+                    </td>
                     <td className="px-4 py-4 text-grey">{product.stock} in stock</td>
                     <td className="px-4 py-4">
                       <Status status={product.status ?? "draft"} />
@@ -222,12 +234,19 @@ function Products() {
                           onClick={async () => {
                             if (!confirm(`Delete ${product.name} and its uploaded image?`)) return;
                             try {
-                              await adminDeleteProduct({ data: { slug: product.slug } });
-                              await queryClient.invalidateQueries({
-                                queryKey: ["admin", "products"],
+                              const result = await adminDeleteProduct({
+                                data: { slug: product.slug },
                               });
-                              setMessage(`Deleted ${product.name}.`);
+                              await Promise.all([
+                                queryClient.invalidateQueries({ queryKey: ["admin", "products"] }),
+                                queryClient.invalidateQueries({ queryKey: ["products"] }),
+                              ]);
                               resetForm();
+                              setMessage(
+                                result.imageCleanupWarning
+                                  ? `Deleted ${product.name}, but its stored image could not be cleared.`
+                                  : `Deleted ${product.name}.`,
+                              );
                             } catch (caught) {
                               setError(
                                 caught instanceof Error
@@ -288,6 +307,7 @@ function Products() {
                 const result = await adminUpsertProduct({
                   data: {
                     slug: form.slug.trim(),
+                    ...(editingSlug ? { original_slug: editingSlug } : {}),
                     name: form.name.trim(),
                     category_slug: form.category_slug,
                     price: Number(form.price || 0),
@@ -302,13 +322,17 @@ function Products() {
                     is_featured: form.is_featured,
                   },
                 });
+                await Promise.all([
+                  queryClient.invalidateQueries({ queryKey: ["admin", "products"] }),
+                  queryClient.invalidateQueries({ queryKey: ["products"] }),
+                  queryClient.invalidateQueries({ queryKey: ["product"] }),
+                ]);
+                resetForm();
                 setMessage(
                   result.imageCleanupWarning
-                    ? "Product saved, but the previous image could not be cleared. Try removing it again."
+                    ? "Product saved, but the previous image could not be cleared. Remove it from storage when possible."
                     : "Product saved.",
                 );
-                await queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
-                resetForm();
               } catch (caught) {
                 setError(caught instanceof Error ? caught.message : "Product could not be saved.");
               } finally {
@@ -318,6 +342,9 @@ function Products() {
           >
             {error ? <Notice kind="error">{error}</Notice> : null}
             {message ? <Notice kind="success">{message}</Notice> : null}
+            {liveCollections.length === 0 ? (
+              <Notice kind="error">Create a collection before adding or assigning products.</Notice>
+            ) : null}
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
               <Field
                 label="Product name"
@@ -342,6 +369,7 @@ function Products() {
                 value={form.category_slug}
                 options={categoryOptions}
                 onChange={(value) => setForm((current) => ({ ...current, category_slug: value }))}
+                disabled={categoryOptions.length === 0}
               />
               <Select
                 label="Status"
@@ -472,7 +500,7 @@ function Products() {
               Feature on homepage
             </label>
             <button
-              disabled={saving || uploading}
+              disabled={saving || uploading || liveCollections.length === 0}
               className="inline-flex items-center justify-center gap-2 rounded-md bg-foreground px-4 py-2.5 text-sm font-medium text-background disabled:opacity-50"
             >
               <Upload className="size-4" />
@@ -551,6 +579,7 @@ function Field({
         value={value}
         type={type}
         min={type === "number" ? 0 : undefined}
+        step={type === "number" && label === "Price (NGN)" ? "0.01" : undefined}
         onChange={(event) => onChange(event.target.value)}
         className="w-full rounded border border-input bg-card px-3 py-2 text-sm text-ivory outline-none focus:border-gold"
       />
@@ -562,16 +591,19 @@ function Select({
   value,
   options,
   onChange,
+  disabled = false,
 }: {
   label: string;
   value: string;
   options: Array<{ value: string; label: string }>;
   onChange: (value: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <label className="grid gap-1.5">
       <span className="text-sm text-grey">{label}</span>
       <select
+        disabled={disabled}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="w-full rounded border border-input bg-card px-3 py-2 text-sm text-ivory outline-none focus:border-gold"

@@ -10,6 +10,7 @@ import {
 } from "@/lib/admin-queries";
 import { adminUpdateOrderStatus } from "@/lib/admin.functions";
 import type { Enums } from "@/integrations/supabase/types";
+import { shippingMethodLabel } from "@/lib/shipping";
 
 export const Route = createFileRoute("/admin/orders")({
   loader: ({ context }) => context.queryClient.ensureQueryData(adminOrdersQuery),
@@ -185,14 +186,18 @@ function Orders() {
                     ))}
                   </div>
 
-                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                  <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <SummaryPill
                       label="Subtotal"
                       value={`₦${Number(order.subtotal).toLocaleString("en-NG")}`}
                     />
                     <SummaryPill
-                      label="Shipping"
+                      label={shippingMethodLabel(order.shipping_method)}
                       value={`₦${Number(order.shipping_cost).toLocaleString("en-NG")}`}
+                    />
+                    <SummaryPill
+                      label="Total"
+                      value={`₦${Number(order.total).toLocaleString("en-NG")}`}
                     />
                     <SummaryPill label="Status" value={order.status} />
                   </div>

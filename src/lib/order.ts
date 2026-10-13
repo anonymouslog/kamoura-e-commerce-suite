@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { formatPrice, storeConfig } from "./store-config";
+import { shippingMethodLabel } from "./shipping";
 
 /** Shared between the checkout form and the order-message builder. */
 export const orderSchema = z.object({
@@ -15,15 +16,11 @@ export const orderSchema = z.object({
   state: z.string().trim().min(2, "State is required."),
   postalCode: z.string().trim().optional(),
   country: z.string().trim().min(2, "Country is required."),
-  shippingMethod: z.enum(["standard", "express", "pickup"]),
+  shippingMethod: z.enum(["same_state", "interstate_waybill"]),
   note: z.string().trim().max(500).optional(),
 });
 
 export type OrderDetails = z.infer<typeof orderSchema>;
-
-export function shippingCost(method: OrderDetails["shippingMethod"]): number {
-  return storeConfig.shipping.find((s) => s.id === method)?.cost ?? 0;
-}
 
 export function buildOrderMessage(args: {
   reference: string;
@@ -34,8 +31,6 @@ export function buildOrderMessage(args: {
   total: number;
 }): string {
   const { reference, details, items, subtotal, shipping, total } = args;
-  const ship = storeConfig.shipping.find((s) => s.id === details.shippingMethod);
-
   const lines = [
     `KAMOURA — new order ${reference}`,
     "",
@@ -46,7 +41,7 @@ export function buildOrderMessage(args: {
     ),
     "",
     `Subtotal: ${formatPrice(subtotal)}`,
-    `Shipping (${ship?.label ?? "—"}): ${formatPrice(shipping)}`,
+    `Shipping (${shippingMethodLabel(details.shippingMethod)}): ${formatPrice(shipping)}`,
     `Total: ${formatPrice(total)}`,
     "",
     "Customer",

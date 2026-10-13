@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildCategoryDeleteErrorMessage } from "@/lib/admin.functions";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { dedupeGalleryImages, getCategory, mapProduct, type ProductRow } from "@/lib/catalog";
 
 describe("catalog module", () => {
@@ -71,12 +72,25 @@ describe("catalog module", () => {
     expect(legacy?.name).toBe("Shirting");
   });
 
-  it("formats a clear category delete block message when products still reference the category", () => {
-    expect(buildCategoryDeleteErrorMessage(3)).toBe(
-      "This category has 3 products — reassign or delete them first.",
+  it("does not expose collection deletion and blocks database deletes", () => {
+    const serverFunctions = readFileSync(
+      resolve(process.cwd(), "src/lib/admin.functions.ts"),
+      "utf8",
     );
-    expect(buildCategoryDeleteErrorMessage(1)).toBe(
-      "This category has 1 product — reassign or delete it first.",
+    const adminPage = readFileSync(
+      resolve(process.cwd(), "src/routes/admin/collections.tsx"),
+      "utf8",
     );
+    const migration = readFileSync(
+      resolve(process.cwd(), "supabase/migrations/20261013000100_collections_users_shipping.sql"),
+      "utf8",
+    );
+
+    expect(serverFunctions).not.toContain("adminDeleteCollection");
+    expect(serverFunctions).not.toContain("adminDeleteCategory");
+    expect(serverFunctions).not.toContain('.from("categories").delete()');
+    expect(adminPage).not.toContain("Delete ");
+    expect(migration).toContain("create trigger categories_prevent_delete");
+    expect(migration).toContain("Collections cannot be deleted.");
   });
 });

@@ -1,14 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { resolveOrderNotificationEmailConfig } from "@/lib/order-notifications.server";
-import { buildOrderMessage, shippingCost, type OrderDetails } from "@/lib/order";
+import { buildOrderMessage, type OrderDetails } from "@/lib/order";
 
 describe("order module", () => {
-  it("computes shippingCost correctly for all three methods", () => {
-    expect(shippingCost("standard")).toBe(4500);
-    expect(shippingCost("express")).toBe(9500);
-    expect(shippingCost("pickup")).toBe(0);
-  });
-
   it("formats buildOrderMessage as expected", () => {
     const details: OrderDetails = {
       fullName: "Ada Lovelace",
@@ -18,7 +12,7 @@ describe("order module", () => {
       city: "Lagos",
       state: "Lagos",
       country: "Nigeria",
-      shippingMethod: "standard",
+      shippingMethod: "same_state",
       note: "Leave at front desk",
     };
 
@@ -43,6 +37,7 @@ describe("order module", () => {
     expect(message).toContain("• Lune Silk Shirt — M / Ivory × 2");
     expect(message).toContain("Ada Lovelace");
     expect(message).toContain("12 Marina Road");
+    expect(message).toContain("Shipping (Same-state delivery)");
     expect(message).toContain("Note\nLeave at front desk");
   });
 

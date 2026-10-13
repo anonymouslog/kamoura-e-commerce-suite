@@ -1,42 +1,41 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
-import { adminDeleteCategory, adminUpsertCategory } from "@/lib/admin.functions";
-import { adminCategoriesQuery } from "@/lib/admin-queries";
-import { categories } from "@/lib/catalog";
+import { adminUpsertCollection } from "@/lib/admin.functions";
+import { adminCollectionsQuery } from "@/lib/admin-queries";
 
-type CategoryFormState = {
+type CollectionFormState = {
   slug: string;
   name: string;
   blurb: string;
   sort_order: string;
 };
 
-const emptyForm = (): CategoryFormState => ({
+const emptyForm = (): CollectionFormState => ({
   slug: "",
   name: "",
   blurb: "",
   sort_order: "0",
 });
 
-export const Route = createFileRoute("/admin/categories")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(adminCategoriesQuery),
-  component: AdminCategories,
+export const Route = createFileRoute("/admin/collections")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(adminCollectionsQuery),
+  component: AdminCollections,
 });
 
-function AdminCategories() {
+function AdminCollections() {
   const queryClient = useQueryClient();
-  const { data: categoriesData } = useSuspenseQuery(adminCategoriesQuery);
+  const { data: collections } = useSuspenseQuery(adminCollectionsQuery);
   const [editingSlug, setEditingSlug] = useState("");
-  const [form, setForm] = useState<CategoryFormState>(emptyForm());
+  const [form, setForm] = useState<CollectionFormState>(emptyForm());
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const editingCategory = useMemo(
-    () => categoriesData.find((category) => category.slug === editingSlug) ?? null,
-    [categoriesData, editingSlug],
+  const editingCollection = useMemo(
+    () => collections.find((collection) => collection.slug === editingSlug) ?? null,
+    [collections, editingSlug],
   );
 
   const resetForm = () => {
@@ -47,14 +46,14 @@ function AdminCategories() {
   };
 
   const startEditing = (slug: string) => {
-    const category = categoriesData.find((item) => item.slug === slug);
-    if (!category) return;
+    const collection = collections.find((item) => item.slug === slug);
+    if (!collection) return;
     setEditingSlug(slug);
     setForm({
-      slug: category.slug,
-      name: category.name,
-      blurb: category.blurb ?? "",
-      sort_order: String(category.sort_order ?? 0),
+      slug: collection.slug,
+      name: collection.name,
+      blurb: collection.blurb ?? "",
+      sort_order: String(collection.sort_order ?? 0),
     });
     setMessage(null);
     setError(null);
@@ -65,8 +64,8 @@ function AdminCategories() {
       <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="eyebrow">Catalog</p>
-          <h1 className="mt-1 text-2xl font-semibold text-ivory">Categories</h1>
-          <p className="mt-1 text-sm text-grey">Organize collections used in the storefront.</p>
+          <h1 className="mt-1 text-2xl font-semibold text-ivory">Collections</h1>
+          <p className="mt-1 text-sm text-grey">Organize the collections used in the storefront.</p>
         </div>
         <button
           type="button"
@@ -74,7 +73,7 @@ function AdminCategories() {
           className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-ivory hover:bg-bg-soft"
         >
           <Plus className="size-4" />
-          New category
+          New collection
         </button>
       </header>
 
@@ -82,7 +81,7 @@ function AdminCategories() {
         <section className="overflow-hidden rounded-lg border border-border bg-card">
           <div className="border-b border-border px-5 py-4">
             <h2 className="font-semibold text-ivory">Collections</h2>
-            <p className="mt-1 text-sm text-grey">{categoriesData.length} saved collections</p>
+            <p className="mt-1 text-sm text-grey">{collections.length} saved collections</p>
           </div>
           <div className="overflow-x-auto">
             <table className="table-scroll w-full text-left text-sm">
@@ -94,66 +93,37 @@ function AdminCategories() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {categoriesData.map((category) => (
-                  <tr key={category.slug} className="transition-colors hover:bg-bg-soft">
+                {collections.map((collection) => (
+                  <tr key={collection.slug} className="transition-colors hover:bg-bg-soft">
                     <td className="px-5 py-4">
                       <button
                         type="button"
-                        onClick={() => startEditing(category.slug)}
+                        onClick={() => startEditing(collection.slug)}
                         className="text-left"
                       >
-                        <span className="block font-medium text-ivory">{category.name}</span>
-                        {category.blurb ? (
-                          <span className="mt-1 block text-xs text-grey">{category.blurb}</span>
+                        <span className="block font-medium text-ivory">{collection.name}</span>
+                        {collection.blurb ? (
+                          <span className="mt-1 block text-xs text-grey">{collection.blurb}</span>
                         ) : null}
                       </button>
                     </td>
-                    <td className="px-4 py-4 text-grey">{category.sort_order ?? 0}</td>
+                    <td className="px-4 py-4 text-grey">{collection.sort_order ?? 0}</td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => startEditing(category.slug)}
-                          className="rounded p-1.5 text-grey hover:bg-card hover:text-ivory"
-                          aria-label={`Edit ${category.name}`}
-                        >
-                          <Pencil className="size-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (!confirm(`Delete the ${category.name} collection?`)) return;
-                            try {
-                              await adminDeleteCategory({ data: { slug: category.slug } });
-                              await Promise.all([
-                                queryClient.invalidateQueries({
-                                  queryKey: ["admin", "categories"],
-                                }),
-                                queryClient.invalidateQueries({ queryKey: ["categories"] }),
-                              ]);
-                              setMessage(`Deleted the ${category.name} collection.`);
-                              resetForm();
-                            } catch (caught) {
-                              setError(
-                                caught instanceof Error
-                                  ? caught.message
-                                  : "Category could not be deleted.",
-                              );
-                            }
-                          }}
-                          className="rounded p-1.5 text-grey hover:bg-red-500/10 hover:text-red-600"
-                          aria-label={`Delete ${category.name}`}
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => startEditing(collection.slug)}
+                        className="rounded p-1.5 text-grey hover:bg-card hover:text-ivory"
+                        aria-label={`Edit ${collection.name}`}
+                      >
+                        <Pencil className="size-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
-                {categoriesData.length === 0 ? (
+                {collections.length === 0 ? (
                   <tr>
                     <td colSpan={3} className="px-5 py-10 text-center text-grey">
-                      No categories yet. Create one to organise the storefront.
+                      No collections yet. Create one to organise the storefront.
                     </td>
                   </tr>
                 ) : null}
@@ -165,10 +135,10 @@ function AdminCategories() {
         <section className="rounded-lg border border-border bg-card p-5">
           <div className="mb-5">
             <p className="text-xs uppercase tracking-[0.14em] text-grey-dim">
-              {editingCategory ? "Edit category" : "New category"}
+              {editingCollection ? "Edit collection" : "New collection"}
             </p>
             <h2 className="mt-1 font-semibold text-ivory">
-              {editingCategory ? editingCategory.name : "Collection details"}
+              {editingCollection ? editingCollection.name : "Collection details"}
             </h2>
           </div>
 
@@ -183,8 +153,9 @@ function AdminCategories() {
               setError(null);
               setMessage(null);
               try {
-                await adminUpsertCategory({
+                await adminUpsertCollection({
                   data: {
+                    ...(editingSlug ? { original_slug: editingSlug } : {}),
                     slug: form.slug.trim(),
                     name: form.name.trim(),
                     blurb: form.blurb.trim(),
@@ -192,13 +163,18 @@ function AdminCategories() {
                   },
                 });
                 await Promise.all([
-                  queryClient.invalidateQueries({ queryKey: ["admin", "categories"] }),
+                  queryClient.invalidateQueries({ queryKey: ["admin", "collections"] }),
+                  queryClient.invalidateQueries({ queryKey: ["admin", "products"] }),
                   queryClient.invalidateQueries({ queryKey: ["categories"] }),
+                  queryClient.invalidateQueries({ queryKey: ["products"] }),
+                  queryClient.invalidateQueries({ queryKey: ["product"] }),
                 ]);
-                setMessage("Category saved.");
                 resetForm();
+                setMessage("Collection saved.");
               } catch (caught) {
-                setError(caught instanceof Error ? caught.message : "Category could not be saved.");
+                setError(
+                  caught instanceof Error ? caught.message : "Collection could not be saved.",
+                );
               } finally {
                 setSaving(false);
               }
@@ -239,7 +215,7 @@ function AdminCategories() {
               disabled={saving}
               className="inline-flex items-center justify-center gap-2 rounded-md bg-foreground px-4 py-2.5 text-sm font-medium text-background disabled:opacity-50"
             >
-              {saving ? "Saving..." : editingCategory ? "Save changes" : "Create category"}
+              {saving ? "Saving..." : editingCollection ? "Save changes" : "Create collection"}
             </button>
           </form>
         </section>
