@@ -9,7 +9,7 @@ describe("admin data protections", () => {
     const adminRoute = source("src/routes/admin/route.tsx");
     const rootRoute = source("src/routes/__root.tsx");
 
-    expect(adminRoute).toContain('fetchQuery({ ...accountQuery, staleTime: 0 })');
+    expect(adminRoute).toContain("fetchQuery({ ...accountQuery, staleTime: 0 })");
     expect(adminRoute).toContain("const { error } = await supabase.auth.signOut()");
     expect(adminRoute).toContain("queryClient.clear()");
     expect(adminRoute).toContain('navigate({ to: "/auth", replace: true })');
